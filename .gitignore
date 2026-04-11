@@ -1,0 +1,16 @@
+# Database file (we don't want to upload your personal expenses to the internet!)
+*.db
+
+# Python compilation files
+__pycache__/
+*.pyc
+
+# PyInstaller build files (for when you package it)
+build/
+dist/
+*.spec
+*.exe
+
+# OS generated files
+.DS_Store
+Thumbs.db
