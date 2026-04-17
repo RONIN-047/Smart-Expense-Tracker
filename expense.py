@@ -8,7 +8,6 @@ def add_expense(amount, category, date, note=''):
     conn = db.get_connection()
     if conn is None:
         return False
-        
     try:
         cursor = conn.cursor()
         # Parameterized query to prevent SQL injection

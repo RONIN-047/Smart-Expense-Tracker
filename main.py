@@ -1,4 +1,3 @@
-# main.py - Modern GUI entry point using CustomTkinter with embedded charts
 import customtkinter as ctk
 import tkinter.messagebox as messagebox
 from tkinter import filedialog
@@ -6,17 +5,16 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import db
 import expense
 import analytics
+import tkcalendar
 import utils
 import datetime
 import os
 
-# --- Modern Theme Config ---
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("blue")
 
 WINDOW_WIDTH = 1350
 WINDOW_HEIGHT = 850
-
 COLOR_SUCCESS = '#2fa572'
 COLOR_WARNING = '#eaaa00'
 COLOR_DANGER = '#d35b5b'
@@ -42,7 +40,7 @@ class DashboardFrame(ctk.CTkFrame):
         
         # Summary Cards
         cards_frame = ctk.CTkFrame(self, fg_color="transparent")
-        cards_frame.pack(fill='x', pady=(0, 30))
+        cards_frame.pack(fill='x', pady=(0, 15))
         
         self.val_total = ctk.StringVar(value="Rs 0")
         self.val_month = ctk.StringVar(value="Rs 0")
@@ -54,34 +52,50 @@ class DashboardFrame(ctk.CTkFrame):
         self.create_card(cards_frame, "This Month", self.val_month, "#3b8ed0").pack(side='right', fill='x', expand=True, padx=10)
         self.create_card(cards_frame, "Total Expenses", self.val_total, "#3b8ed0").pack(side='right', fill='x', expand=True, padx=(0, 10))
         
-        ctk.CTkLabel(self, text="Recent Expenses", font=ctk.CTkFont(size=18, weight="bold")).pack(anchor='w', pady=(10, 10))
+        # Split Layout for Sidebar and Charts
+        split_frame = ctk.CTkFrame(self, fg_color="transparent")
+        split_frame.pack(fill='both', expand=True)
+        split_frame.grid_columnconfigure(0, weight=1)
+        split_frame.grid_columnconfigure(1, weight=1)
+        split_frame.grid_rowconfigure(0, weight=1)
         
-        # Modern Scrollable list for table
-        self.list_frame = ctk.CTkScrollableFrame(self, fg_color=COLOR_SURFACE, corner_radius=15)
+        # Left Side
+        left_col = ctk.CTkFrame(split_frame, fg_color="transparent")
+        left_col.grid(row=0, column=0, sticky='nsew', padx=(0,10))
+        ctk.CTkLabel(left_col, text="Recent Expenses", font=ctk.CTkFont(size=18, weight="bold")).pack(anchor='w', pady=(10, 10))
+        self.list_frame = ctk.CTkScrollableFrame(left_col, fg_color=COLOR_SURFACE, corner_radius=15)
         self.list_frame.pack(fill='both', expand=True)
+        
+        # Right Side (Charts)
+        right_col = ctk.CTkFrame(split_frame, fg_color="transparent")
+        right_col.grid(row=0, column=1, sticky='nsew', padx=(10,0))
+        ctk.CTkLabel(right_col, text="Expenditure Insights", font=ctk.CTkFont(size=18, weight="bold")).pack(anchor='w', pady=(10, 10))
+        self.charts_frame = ctk.CTkScrollableFrame(right_col, fg_color=COLOR_SURFACE, corner_radius=15)
+        self.charts_frame.pack(fill='both', expand=True)
 
     def create_card(self, parent, title, var, text_color):
         frame = ctk.CTkFrame(parent, fg_color=COLOR_SURFACE, corner_radius=15)
         frame.pack_propagate(False)
-        frame.configure(height=120)
-        ctk.CTkLabel(frame, text=title, font=ctk.CTkFont(size=14), text_color="grey").pack(anchor='nw', padx=20, pady=(20, 5))
-        lbl_val = ctk.CTkLabel(frame, textvariable=var, font=ctk.CTkFont(size=28, weight="bold"), text_color=text_color)
-        lbl_val.pack(anchor='nw', padx=20)
+        frame.configure(height=100)
+        ctk.CTkLabel(frame, text=title, font=ctk.CTkFont(size=14), text_color="grey").pack(anchor='nw', padx=15, pady=(15, 5))
+        lbl_val = ctk.CTkLabel(frame, textvariable=var, font=ctk.CTkFont(size=24, weight="bold"), text_color=text_color)
+        lbl_val.pack(anchor='nw', padx=15)
         return frame
         
     def render_row(self, date, category, amount, note):
         row = ctk.CTkFrame(self.list_frame, fg_color="transparent")
         row.pack(fill='x', pady=8, padx=10)
         
-        ctk.CTkLabel(row, text=date, font=ctk.CTkFont(size=14, weight="bold"), width=120, anchor='w').pack(side='left')
+        ctk.CTkLabel(row, text=date, font=ctk.CTkFont(size=12, weight="bold"), width=90, anchor='w').pack(side='left')
         
         cat_badge = ctk.CTkFrame(row, fg_color="#3b8ed0", corner_radius=10, height=25)
         cat_badge.pack(side='left', padx=10)
         cat_badge.pack_propagate(False)
-        ctk.CTkLabel(cat_badge, text=category, font=ctk.CTkFont(size=12, weight="bold"), text_color="white", width=90).pack(expand=True)
+        display_cat = utils.get_category_display(category)
+        ctk.CTkLabel(cat_badge, text=display_cat, font=ctk.CTkFont(size=12, weight="bold"), text_color="white", width=110).pack(expand=True)
         
-        ctk.CTkLabel(row, text=note, font=ctk.CTkFont(size=14), text_color="grey", anchor='w').pack(side='left', fill='x', expand=True, padx=20)
-        ctk.CTkLabel(row, text=amount, font=ctk.CTkFont(size=16, weight="bold")).pack(side='right')
+        ctk.CTkLabel(row, text=note, font=ctk.CTkFont(size=13), text_color="grey", anchor='w').pack(side='left', fill='x', expand=True, padx=10)
+        ctk.CTkLabel(row, text=amount, font=ctk.CTkFont(size=14, weight="bold")).pack(side='right')
 
     def on_show(self):
         expenses = expense.get_all_expenses()
@@ -100,21 +114,35 @@ class DashboardFrame(ctk.CTkFrame):
         lbl_obj.configure(text_color=COLOR_DANGER if warnings > 0 else COLOR_SUCCESS)
         
         clear_frame(self.list_frame)
-        for e in expenses[:5]:
+        for e in expenses[:10]:
             self.render_row(e['date'], e['category'], utils.format_currency(e['amount']), e['note'])
             
         if not expenses:
             ctk.CTkLabel(self.list_frame, text="No expenses found. Let's add one!", text_color="grey").pack(pady=40)
+            
+        # Draw Charts on Dashboard!
+        clear_frame(self.charts_frame)
+        fig_pie = analytics.get_category_pie_chart_figure()
+        if fig_pie:
+            canvas_pie = FigureCanvasTkAgg(fig_pie, master=self.charts_frame)
+            canvas_pie.draw()
+            canvas_pie.get_tk_widget().pack(side='top', fill='both', expand=True, pady=(0, 15))
+            
+        fig_bar = analytics.get_category_bar_chart_figure()
+        if fig_bar:
+            canvas_bar = FigureCanvasTkAgg(fig_bar, master=self.charts_frame)
+            canvas_bar.draw()
+            canvas_bar.get_tk_widget().pack(side='top', fill='both', expand=True, pady=(0, 15))
+        elif not fig_pie:
+            ctk.CTkLabel(self.charts_frame, text="Log expenses to generate insights.", text_color="grey").pack(pady=40)
 
 class AddExpenseFrame(ctk.CTkFrame):
     def __init__(self, parent):
         super().__init__(parent, fg_color="transparent")
         
         ctk.CTkLabel(self, text="Add New Expense", font=ctk.CTkFont(size=28, weight="bold")).pack(anchor='w', pady=(0, 20))
-        
         card = ctk.CTkFrame(self, fg_color=COLOR_SURFACE, corner_radius=15)
         card.pack(fill='both', expand=True)
-        
         form = ctk.CTkFrame(card, fg_color="transparent")
         form.pack(pady=40, padx=40, anchor='nw', fill='both', expand=True)
         form.grid_columnconfigure(0, weight=1)
@@ -124,20 +152,18 @@ class AddExpenseFrame(ctk.CTkFrame):
         self.ent_amount.grid(row=1, column=0, sticky='w', pady=(0,20))
         
         ctk.CTkLabel(form, text="Category Tags", font=ctk.CTkFont(weight="bold")).grid(row=2, column=0, sticky='w', pady=(0,5))
-        
-        # Clean Frame for Bubbles (No scrollbars)
         self.tags_frame = ctk.CTkFrame(form, height=50, fg_color="transparent")
         self.tags_frame.grid(row=3, column=0, sticky='ew', pady=(0, 10))
-        
         self.selected_tag = ctk.StringVar(value="")
         self.bubble_buttons = []
-        
-        self.ent_custom_tag = ctk.CTkEntry(form, width=350, height=40, placeholder_text="Type custom tag...")
-        # (Will be gridded dynamically if 'Other' is selected)
+        self.ent_custom_tag = ctk.CTkEntry(form, width=350, height=40, placeholder_text="Type custom tag...")       #Custom Tags
         
         ctk.CTkLabel(form, text="Date (YYYY-MM-DD)", font=ctk.CTkFont(weight="bold")).grid(row=5, column=0, sticky='w', pady=(0,5))
-        self.ent_date = ctk.CTkEntry(form, width=350, height=40)
-        self.ent_date.grid(row=6, column=0, sticky='w', pady=(0,20))
+        self.selected_date = ctk.StringVar(value=utils.get_today())
+        self.btn_date = ctk.CTkButton(form, textvariable=self.selected_date, width=350, height=40, 
+                                        fg_color="#333333", hover_color="#444444", text_color="white", border_width=1, border_color="#555555",
+                                        command=self.open_calendar, font=ctk.CTkFont(size=14))
+        self.btn_date.grid(row=6, column=0, sticky='w', pady=(0,20))
         
         ctk.CTkLabel(form, text="Note (Optional)", font=ctk.CTkFont(weight="bold")).grid(row=7, column=0, sticky='w', pady=(0,5))
         self.ent_note = ctk.CTkEntry(form, width=350, height=40, placeholder_text="What was this for?")
@@ -165,6 +191,72 @@ class AddExpenseFrame(ctk.CTkFrame):
             self.ent_custom_tag.grid_remove()
             self.ent_custom_tag.delete(0, 'end')
 
+    def open_calendar(self):
+        top = ctk.CTkToplevel(self)
+        top.title("Select Date")
+        top.geometry("350x380")
+        top.transient(self.winfo_toplevel())
+        top.grab_set()
+        try:
+            curr_date = datetime.datetime.strptime(self.selected_date.get(), "%Y-%m-%d")
+        except:
+            curr_date = datetime.datetime.now()
+
+        header_frame = ctk.CTkFrame(top, fg_color="transparent")
+        header_frame.pack(fill='x', padx=10, pady=(15, 0))
+        months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+        var_month = ctk.StringVar(value=months[curr_date.month - 1])
+        var_year = ctk.StringVar(value=str(curr_date.year))
+        year_frame = ctk.CTkFrame(header_frame, fg_color="transparent")
+        year_frame.pack(side='left', padx=(10, 0))
+
+        #SpinBox for Year
+        def increase_year():
+            var_year.set(str(int(var_year.get()) + 1))
+            update_cal()
+        def decrease_year():
+            var_year.set(str(int(var_year.get()) - 1))
+            update_cal()
+
+        btn_minus = ctk.CTkButton(year_frame, text="-", width=35, command=decrease_year)
+        btn_minus.pack(side='left')
+        lbl_year = ctk.CTkLabel(year_frame, textvariable=var_year, width=70, anchor='center')
+        lbl_year.pack(side='left', padx=5)
+        btn_plus = ctk.CTkButton(year_frame, text="+", width=35, command=increase_year)
+        btn_plus.pack(side='left')
+                    
+        cal = tkcalendar.Calendar(top, selectmode='day', 
+                                  year=curr_date.year, month=curr_date.month, day=curr_date.day,
+                                  date_pattern='yyyy-mm-dd',
+                                  font="Arial 12",
+                                  background="#2b2b2b", selectbackground="#3b8ed0", 
+                                  foreground="white", normalbackground="#2b2b2b",
+                                  normalforeground="white", headersbackground="#333333",
+                                  headersforeground="white", bordercolor="#2b2b2b", borderwidth=0,
+                                  weekendbackground="#2b2b2b", weekendforeground="white",
+                                  othermonthforeground="#555555", othermonthbackground="#2b2b2b",
+                                  othermonthweforeground="#555555", othermonthwebackground="#2b2b2b")
+                                  
+        # Hide default tkcalendar header to allow custom CTkDropdowns
+        if hasattr(cal, '_header'):
+            cal._header.pack_forget()
+            
+        def update_cal(*args):
+            m_idx = months.index(var_month.get()) + 1
+            y_val = int(var_year.get())
+            cal._date = datetime.date(y_val, m_idx, 1)
+            cal._display_calendar()
+
+        cb_month = ctk.CTkOptionMenu(header_frame, values=months, variable=var_month, command=update_cal, width=160, fg_color="#333333", button_color="#444444")
+        cb_month.pack(side='right', padx=(0, 20))
+        cal.pack(fill='both', expand=True, padx=20, pady=20)
+        
+        def on_date_select(event):
+            self.selected_date.set(cal.get_date())
+            top.destroy()
+            
+        cal.bind("<<CalendarSelected>>", on_date_select)
+
     def on_show(self):
         clear_frame(self.tags_frame)
         self.bubble_buttons = []
@@ -173,11 +265,11 @@ class AddExpenseFrame(ctk.CTkFrame):
         for c in cats:
             if c.lower() == 'other':
                 continue
-            btn = ctk.CTkButton(self.tags_frame, text=c, command=lambda v=c: self._select_tag(v), corner_radius=20, height=32, width=1)
+            btn = ctk.CTkButton(self.tags_frame, text=utils.get_category_display(c), command=lambda v=c: self._select_tag(v), corner_radius=20, height=32, width=1)
             btn.pack(side='left', padx=(0, 10))
             self.bubble_buttons.append((c, btn))
             
-        btn_other = ctk.CTkButton(self.tags_frame, text="Other", command=lambda: self._select_tag("Other"), corner_radius=20, height=32, width=1)
+        btn_other = ctk.CTkButton(self.tags_frame, text=utils.get_category_display("Other"), command=lambda: self._select_tag("Other"), corner_radius=20, height=32, width=1)
         btn_other.pack(side='left', padx=(0, 10))
         self.bubble_buttons.append(("Other", btn_other))
         
@@ -185,8 +277,7 @@ class AddExpenseFrame(ctk.CTkFrame):
         
     def clear_form(self):
         self.ent_amount.delete(0, 'end')
-        self.ent_date.delete(0, 'end')
-        self.ent_date.insert(0, utils.get_today())
+        self.selected_date.set(utils.get_today())
         self.ent_note.delete(0, 'end')
         self.lbl_status.configure(text="")
         if self.bubble_buttons:
@@ -194,7 +285,7 @@ class AddExpenseFrame(ctk.CTkFrame):
         
     def save_expense(self):
         amt = self.ent_amount.get()
-        date = self.ent_date.get()
+        date = self.selected_date.get()
         note = self.ent_note.get()
         
         cat = self.selected_tag.get()
@@ -259,7 +350,7 @@ class ViewExpensesFrame(ctk.CTkFrame):
         cat_badge = ctk.CTkFrame(row, fg_color="#3b8ed0", corner_radius=10, height=25)
         cat_badge.pack(side='left', padx=10)
         cat_badge.pack_propagate(False)
-        ctk.CTkLabel(cat_badge, text=category, font=ctk.CTkFont(size=12, weight="bold"), text_color="white", width=90).pack(expand=True)
+        ctk.CTkLabel(cat_badge, text=utils.get_category_display(category), font=ctk.CTkFont(size=12, weight="bold"), text_color="white", width=90).pack(expand=True)
         
         ctk.CTkLabel(row, text=note, font=ctk.CTkFont(size=14), text_color="grey", anchor='w').pack(side='left', fill='x', expand=True, padx=20)
         
@@ -295,66 +386,6 @@ class ViewExpensesFrame(ctk.CTkFrame):
         if confirm:
             if expense.delete_expense(exp_id):
                 self.load_expenses()
-
-class CategorySummaryFrame(ctk.CTkFrame):
-    def __init__(self, parent):
-        super().__init__(parent, fg_color="transparent")
-        
-        header = ctk.CTkFrame(self, fg_color="transparent")
-        header.pack(fill='x', pady=(0, 20))
-        ctk.CTkLabel(header, text="Category Totals", font=ctk.CTkFont(size=28, weight="bold")).pack(side='left')
-        
-        # Split screen natively side by side
-        container = ctk.CTkFrame(self, fg_color="transparent")
-        container.pack(fill='both', expand=True, pady=(0, 20))
-        
-        # Left side: List table
-        self.left_col = ctk.CTkFrame(container, fg_color="transparent")
-        self.left_col.pack(side='left', fill='y', expand=False)
-        self.list_frame = ctk.CTkScrollableFrame(self.left_col, fg_color=COLOR_SURFACE, corner_radius=15, width=350)
-        self.list_frame.pack(fill='both', expand=True)
-
-        # Right side: Embedded Charts
-        self.right_col = ctk.CTkFrame(container, fg_color="transparent")
-        self.right_col.pack(side='right', fill='both', expand=True, padx=(20, 0))
-        
-        self.charts_frame = ctk.CTkScrollableFrame(self.right_col, fg_color=COLOR_SURFACE, corner_radius=15)
-        self.charts_frame.pack(fill='both', expand=True)
-
-    def on_show(self):
-        clear_frame(self.list_frame)
-        clear_frame(self.charts_frame)
-        
-        summary = analytics.get_category_summary()
-        
-        if not summary:
-            ctk.CTkLabel(self.list_frame, text="No records.", text_color="grey").pack(pady=40)
-            ctk.CTkLabel(self.charts_frame, text="Add an expense to see beautiful interactive charts.", text_color="grey").pack(pady=40)
-            return
-            
-        for row in summary:
-            item = ctk.CTkFrame(self.list_frame, fg_color="transparent")
-            item.pack(fill='x', pady=10, padx=15)
-            ctk.CTkLabel(item, text=row['category'], font=ctk.CTkFont(size=16, weight="bold")).pack(side='left')
-            ctk.CTkLabel(item, text=utils.format_currency(row['total']), font=ctk.CTkFont(size=16, weight="bold"), text_color="#3b8ed0").pack(side='right')
-            ctk.CTkFrame(self.list_frame, height=1, fg_color="#333333").pack(fill='x', padx=10)
-            
-        # Natively Embed Matplotlib Figures into Tkinter Grid
-        
-        # Plot 1: Pie
-        fig_pie = analytics.get_category_pie_chart_figure()
-        if fig_pie:
-            canvas_pie = FigureCanvasTkAgg(fig_pie, master=self.charts_frame)
-            canvas_pie.draw()
-            canvas_pie.get_tk_widget().pack(side='top', fill='both', expand=True, pady=(10, 10))
-            
-        # Plot 2: Bar
-        fig_bar = analytics.get_category_bar_chart_figure()
-        if fig_bar:
-            canvas_bar = FigureCanvasTkAgg(fig_bar, master=self.charts_frame)
-            canvas_bar.draw()
-            canvas_bar.get_tk_widget().pack(side='top', fill='both', expand=True, pady=(10, 10))
-
 
 class MonthlySummaryFrame(ctk.CTkFrame):
     def __init__(self, parent):
@@ -497,7 +528,7 @@ class SetBudgetFrame(ctk.CTkFrame):
         title_font = ctk.CTkFont(size=20, weight="bold") if is_global else ctk.CTkFont(size=18, weight="bold")
         title_color = "#3b8ed0" if is_global else "white"
         
-        ctk.CTkLabel(item, text=cat_display, font=title_font, text_color=title_color, width=200, anchor='w').pack(side='left')
+        ctk.CTkLabel(item, text=utils.get_category_display(cat_display), font=title_font, text_color=title_color, width=200, anchor='w').pack(side='left')
         
         prog_val = min(spent / limit if limit > 0 else 0, 1.0)
         progress = ctk.CTkProgressBar(item, width=350, height=14 if is_global else 12, progress_color=COLOR_DANGER if is_over else COLOR_SUCCESS)
@@ -530,6 +561,7 @@ class SetBudgetFrame(ctk.CTkFrame):
             conn.commit()
             show_auto_dismiss_message(self.lbl_status, f"Budget removed.", COLOR_SUCCESS)
             self.load_status()
+
 class ExportCSVFrame(ctk.CTkFrame):
     def __init__(self, parent):
         super().__init__(parent, fg_color="transparent")
@@ -607,8 +639,7 @@ class App(ctk.CTk):
             ("Dashboard", DashboardFrame),
             ("Add Expense", AddExpenseFrame),
             ("Browse Expenses", ViewExpensesFrame),
-            ("Category Totals", CategorySummaryFrame),
-            ("Monthly History", MonthlySummaryFrame),
+                        ("Monthly History", MonthlySummaryFrame),
             ("Budget", SetBudgetFrame),
             ("Export Data", ExportCSVFrame)
         ]
