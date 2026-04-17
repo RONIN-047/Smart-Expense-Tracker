@@ -18,3 +18,4 @@ To run the application:
 ```bash
 python main.py
 ```
+
