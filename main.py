@@ -36,7 +36,7 @@ class DashboardFrame(ctk.CTkFrame):
     def __init__(self, parent):
         super().__init__(parent, fg_color="transparent")
         
-        ctk.CTkLabel(self, text="Home Dashboard", font=ctk.CTkFont(size=28, weight="bold")).pack(anchor='w', pady=(0, 20))
+        ctk.CTkLabel(self, text="Home Dashboard", font=ctk.CTkFont(size=30, weight="bold")).pack(anchor='w', pady=(0, 20))
         
         # Summary Cards
         cards_frame = ctk.CTkFrame(self, fg_color="transparent")
@@ -47,6 +47,11 @@ class DashboardFrame(ctk.CTkFrame):
         self.val_warn  = ctk.StringVar(value="0")
         
         self.card_warn_obj = self.create_card(cards_frame, "Active Warnings", self.val_warn, COLOR_SUCCESS)
+        self.btn_view_budgets = ctk.CTkButton(
+            self.card_warn_obj, text="View Budgets", width=100, height=24, 
+            font=ctk.CTkFont(size=11, weight="bold"), fg_color=COLOR_DANGER, 
+            hover_color="#9e4343", command=lambda: self.winfo_toplevel().show_frame("Budget")
+        )
         self.card_warn_obj.pack(side='right', fill='x', expand=True, padx=(10, 0))
         
         self.create_card(cards_frame, "This Month", self.val_month, "#3b8ed0").pack(side='right', fill='x', expand=True, padx=10)
@@ -113,6 +118,11 @@ class DashboardFrame(ctk.CTkFrame):
         lbl_obj = self.card_warn_obj.winfo_children()[1]
         lbl_obj.configure(text_color=COLOR_DANGER if warnings > 0 else COLOR_SUCCESS)
         
+        if warnings > 0:
+            self.btn_view_budgets.place(relx=0.95, rely=0.15, anchor='ne')
+        else:
+            self.btn_view_budgets.place_forget()
+            
         clear_frame(self.list_frame)
         for e in expenses[:10]:
             self.render_row(e['date'], e['category'], utils.format_currency(e['amount']), e['note'])
@@ -357,6 +367,9 @@ class ViewExpensesFrame(ctk.CTkFrame):
         btn_del = ctk.CTkButton(row, text="✕", width=30, fg_color="transparent", text_color=COLOR_DANGER, hover_color="#3d1e1e", command=lambda: self.delete_expense(exp_id))
         btn_del.pack(side='right')
         
+        btn_edit = ctk.CTkButton(row, text="✎", width=30, fg_color="transparent", text_color="white", hover_color="#444444", command=lambda: self.open_edit_dialog(exp_id, amount, category, date, note))
+        btn_edit.pack(side='right')
+        
         ctk.CTkLabel(row, text=utils.format_currency(amount), font=ctk.CTkFont(size=16, weight="bold"), width=120, anchor='e').pack(side='right', padx=(0, 10))
 
     def on_show(self):
@@ -381,6 +394,65 @@ class ViewExpensesFrame(ctk.CTkFrame):
             
         self.lbl_total.configure(text=f"Total: {utils.format_currency(total)}")
         
+    def open_edit_dialog(self, exp_id, amount, category, date, note):
+        top = ctk.CTkToplevel(self)
+        top.title("Edit Expense")
+        top.geometry("400x450")
+        top.transient(self.winfo_toplevel())
+        top.grab_set()
+        
+        form = ctk.CTkFrame(top, fg_color="transparent")
+        form.pack(pady=30, padx=30, fill='both', expand=True)
+        form.grid_columnconfigure(0, weight=1)
+        
+        ctk.CTkLabel(form, text="Amount (Rs)", font=ctk.CTkFont(weight="bold")).grid(row=0, column=0, sticky='w', pady=(0,5))
+        ent_amount = ctk.CTkEntry(form, height=40)
+        ent_amount.grid(row=1, column=0, sticky='ew', pady=(0, 15))
+        ent_amount.insert(0, str(amount))
+        
+        ctk.CTkLabel(form, text="Category", font=ctk.CTkFont(weight="bold")).grid(row=2, column=0, sticky='w', pady=(0,5))
+        cats = expense.get_all_categories()
+        cb_category = ctk.CTkComboBox(form, values=cats, height=40)
+        cb_category.grid(row=3, column=0, sticky='ew', pady=(0, 15))
+        cb_category.set(category)
+        
+        ctk.CTkLabel(form, text="Date (YYYY-MM-DD)", font=ctk.CTkFont(weight="bold")).grid(row=4, column=0, sticky='w', pady=(0,5))
+        ent_date = ctk.CTkEntry(form, height=40)
+        ent_date.grid(row=5, column=0, sticky='ew', pady=(0, 15))
+        ent_date.insert(0, date)
+        
+        ctk.CTkLabel(form, text="Note", font=ctk.CTkFont(weight="bold")).grid(row=6, column=0, sticky='w', pady=(0,5))
+        ent_note = ctk.CTkEntry(form, height=40)
+        ent_note.grid(row=7, column=0, sticky='ew', pady=(0, 25))
+        ent_note.insert(0, note)
+        
+        lbl_status = ctk.CTkLabel(form, text="", font=ctk.CTkFont(weight="bold"))
+        lbl_status.grid(row=9, column=0, sticky='w')
+        
+        def save_changes():
+            v_amt, m_amt = utils.validate_amount(ent_amount.get())
+            if not v_amt:
+                lbl_status.configure(text=m_amt, text_color=COLOR_DANGER)
+                return
+            v_date, m_date = utils.validate_date(ent_date.get())
+            if not v_date:
+                lbl_status.configure(text=m_date, text_color=COLOR_DANGER)
+                return
+            
+            cat_val = cb_category.get()
+            if not str(cat_val).strip():
+                lbl_status.configure(text="Category cannot be empty.", text_color=COLOR_DANGER)
+                return
+                
+            success = expense.update_expense(exp_id, ent_amount.get(), cat_val, ent_date.get(), ent_note.get())
+            if success:
+                top.destroy()
+                self.load_expenses()
+            else:
+                lbl_status.configure(text="Update failed.", text_color=COLOR_DANGER)
+                
+        ctk.CTkButton(form, text="Save Changes", font=ctk.CTkFont(weight="bold"), height=40, command=save_changes).grid(row=8, column=0, sticky='w')
+
     def delete_expense(self, exp_id):
         confirm = messagebox.askyesno("Confirm Delete", f"Are you sure you want to delete this expense permanently?")
         if confirm:
@@ -513,9 +585,6 @@ class SetBudgetFrame(ctk.CTkFrame):
         cat, limit, spent, status = row
         
         if is_global:
-            expenses = expense.get_all_expenses()
-            spent = sum(e['amount'] for e in expenses)
-            status = 'OVER!' if spent > limit else 'OK'
             cat_display = "Total Monthly Limit"
         else:
             cat_display = cat
@@ -608,7 +677,7 @@ class App(ctk.CTk):
     def __init__(self):
         super().__init__()
         
-        self.title("Smart Expense Tracker")
+        self.title("Expense Tracker")
         self.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
         self.minsize(900, 600)
         
@@ -623,7 +692,7 @@ class App(ctk.CTk):
         self.sidebar.grid_rowconfigure(8, weight=1)
         
         # Brand Logo
-        self.logo_label = ctk.CTkLabel(self.sidebar, text="Smart Expense\nTracker", font=ctk.CTkFont(size=22, weight="bold"))
+        self.logo_label = ctk.CTkLabel(self.sidebar, text="Expense Tracker", font=ctk.CTkFont(size=22, weight="bold"))
         self.logo_label.grid(row=0, column=0, padx=20, pady=(30, 40))
         
         # Central Content Layer
