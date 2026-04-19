@@ -5,97 +5,84 @@ import utils
 import matplotlib.pyplot as plt
 import matplotlib
 import datetime
+from typing import List, Tuple, Any
+
 matplotlib.use('TkAgg')
 
 # --- Matplotlib Dark Theme Config ---
 plt.style.use('dark_background')
 BG_COLOR = '#2b2b2b' # Matches CustomTkinter dark theme
 
-def get_category_summary():
-    # Return list of (category, total_amount) tuples ordered by total DESC
-    conn = db.get_connection()
-    if not conn:
-        return []
+def get_category_summary() -> List[sqlite3.Row]:
+    """Return list of rows ordered by total DESC."""
     try:
-        cursor = conn.cursor()
-        cursor.execute('''
-            SELECT category, SUM(amount) as total 
-            FROM expenses 
-            GROUP BY category 
-            ORDER BY total DESC
-        ''')
-        return cursor.fetchall()
+        with db.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT category, SUM(amount) as total 
+                FROM expenses 
+                GROUP BY category 
+                ORDER BY total DESC
+            ''')
+            return cursor.fetchall()
     except sqlite3.Error as e:
         print(f"Error fetching category summary: {e}")
         return []
-    finally:
-        if conn:
-            conn.close()
 
-def get_monthly_summary():
-    # Return list of (month_str, total_amount) tuples ordered by month DESC
-    conn = db.get_connection()
-    if not conn:
-        return []
+def get_monthly_summary() -> List[sqlite3.Row]:
+    """Return list of rows ordered by month DESC."""
     try:
-        cursor = conn.cursor()
-        cursor.execute('''
-            SELECT strftime('%Y-%m', date) as month_str, SUM(amount) as total 
-            FROM expenses 
-            GROUP BY month_str 
-            ORDER BY month_str DESC
-        ''')
-        return cursor.fetchall()
+        with db.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT strftime('%Y-%m', date) as month_str, SUM(amount) as total 
+                FROM expenses 
+                GROUP BY month_str 
+                ORDER BY month_str DESC
+            ''')
+            return cursor.fetchall()
     except sqlite3.Error as e:
         print(f"Error fetching monthly summary: {e}")
         return []
-    finally:
-        if conn:
-            conn.close()
 
-def get_budget_status():
-    # Return list of (category, limit, spent, status) tuples. Status is 'OK' or 'OVER'.
-    conn = db.get_connection()
-    if not conn:
-        return []
+def get_budget_status() -> List[Tuple[str, float, float, str]]:
+    """Return list of (category, limit, spent, status) tuples. Status is 'OK' or 'OVER!'."""
     try:
-        cursor = conn.cursor()
-        curr_month = datetime.datetime.now().strftime('%Y-%m') + '%'
-        cursor.execute('''
-            SELECT b.category, b.limit_amount, COALESCE(SUM(e.amount), 0) as spent
-            FROM budgets b 
-            LEFT JOIN expenses e ON b.category = e.category AND e.date LIKE ?
-            WHERE b.category != 'GLOBAL_TOTAL'
-            GROUP BY b.category
-        ''', (curr_month,))   
-        results = []
-        for row in cursor.fetchall():
-            cat = row['category']
-            limit = row['limit_amount']
-            spent = row['spent']
-            status = 'OVER!' if spent > limit else 'OK'
-            results.append((cat, limit, spent, status)) 
-            
-        # Add GLOBAL_TOTAL if it exists
-        cursor.execute("SELECT limit_amount FROM budgets WHERE category = 'GLOBAL_TOTAL'")
-        global_budget = cursor.fetchone()
-        if global_budget:
-            cursor.execute("SELECT SUM(amount) as spent FROM expenses WHERE date LIKE ?", (curr_month,))
-            global_spent = cursor.fetchone()['spent'] or 0
-            limit = global_budget['limit_amount']
-            status = 'OVER!' if global_spent > limit else 'OK'
-            results.append(('GLOBAL_TOTAL', limit, global_spent, status))
-            
-        return results
+        with db.get_connection() as conn:
+            cursor = conn.cursor()
+            curr_month = datetime.datetime.now().strftime('%Y-%m') + '%'
+            cursor.execute('''
+                SELECT b.category, b.limit_amount, COALESCE(SUM(e.amount), 0) as spent
+                FROM budgets b 
+                LEFT JOIN expenses e ON b.category = e.category AND e.date LIKE ?
+                WHERE b.category != 'GLOBAL_TOTAL'
+                GROUP BY b.category
+            ''', (curr_month,))   
+            results: List[Tuple[str, float, float, str]] = []
+            for row in cursor.fetchall():
+                cat = row['category']
+                limit = row['limit_amount']
+                spent = row['spent']
+                status = 'OVER!' if spent > limit else 'OK'
+                results.append((cat, limit, spent, status)) 
+                
+            # Add GLOBAL_TOTAL if it exists
+            cursor.execute("SELECT limit_amount FROM budgets WHERE category = 'GLOBAL_TOTAL'")
+            global_budget = cursor.fetchone()
+            if global_budget:
+                cursor.execute("SELECT SUM(amount) as spent FROM expenses WHERE date LIKE ?", (curr_month,))
+                global_spent = cursor.fetchone()['spent'] or 0
+                limit = global_budget['limit_amount']
+                status = 'OVER!' if global_spent > limit else 'OK'
+                results.append(('GLOBAL_TOTAL', limit, global_spent, status))
+                
+            return results
     except sqlite3.Error as e:
         print(f"Error fetching budget status: {e}")
         return []
-    finally:
-        if conn:
-            conn.close()
 
-def get_category_bar_chart_figure():
-    # Generate and return a matplotlib figure for category totals.
+def get_category_bar_chart_figure() -> Any:
+    """Generate and return a matplotlib figure for category totals."""
     data = get_category_summary()
     if not data:
         return None    
@@ -120,8 +107,8 @@ def get_category_bar_chart_figure():
     plt.close(fig) # close it from aggressive rendering
     return fig
 
-def get_category_pie_chart_figure():
-    # Generate and return a matplotlib figure for category proportions
+def get_category_pie_chart_figure() -> Any:
+    """Generate and return a matplotlib figure for category proportions."""
     data = get_category_summary()
     if not data:
         return None
@@ -139,8 +126,8 @@ def get_category_pie_chart_figure():
     plt.close(fig)
     return fig
 
-def get_monthly_trend_figure():
-    # Generate and return a matplotlib figure for monthly spending trend.
+def get_monthly_trend_figure() -> Any:
+    """Generate and return a matplotlib figure for monthly spending trend."""
     data = get_monthly_summary()
     if not data:
         return None
