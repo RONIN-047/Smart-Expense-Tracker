@@ -17,7 +17,7 @@ CATEGORY_ICONS: dict[str, str] = {
 }
 
 def get_category_display(category: str) -> str:
-    """Format category name with its corresponding emoji icon."""
+    # Format category name with its corresponding emoji icon
     cat_lower = str(category).lower().strip()
     icon = CATEGORY_ICONS.get(cat_lower, '📌')
     # Prevent double-emoji if it's somehow already there
@@ -26,7 +26,7 @@ def get_category_display(category: str) -> str:
     return f"{icon} {category}"
 
 def validate_amount(value: Any) -> Tuple[bool, Optional[str]]:
-    """Validate that the given string or number is a valid positive float."""
+    # Validate that the given string or number is a valid positive float.
     if not value or str(value).strip() == "":
         return False, "Amount cannot be empty."
     try:
@@ -38,7 +38,7 @@ def validate_amount(value: Any) -> Tuple[bool, Optional[str]]:
         return False, "Amount must be a valid number."
 
 def validate_date(value: Any) -> Tuple[bool, Optional[str]]:
-    """Validate that the given string strictly matches the YYYY-MM-DD format."""
+    # Validate that the given string strictly matches the YYYY-MM-DD format.
     if not value or str(value).strip() == "":
         return False, "Date cannot be empty."
     try:
@@ -48,7 +48,7 @@ def validate_date(value: Any) -> Tuple[bool, Optional[str]]:
         return False, "Date must be in YYYY-MM-DD format."
 
 def format_currency(amount: float | str) -> str:
-    """Format integer or float into a cleanly formatted Rupee string."""
+    # Format integer or float into a cleanly formatted Rupee string.
     try:
         val = float(amount)
         return f"Rs {val:,.2f}"

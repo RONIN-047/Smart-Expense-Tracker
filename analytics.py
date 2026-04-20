@@ -116,7 +116,7 @@ def get_category_pie_chart_figure() -> Any:
     totals = [row['total'] for row in data]    
     fig, ax = plt.subplots(figsize=(5, 4))
     fig.patch.set_facecolor(BG_COLOR)    
-    colors = ['#3b8ed0', '#2fa572', '#eaaa00', '#d35b5b', '#8g6f9c', '#5fd3b3', '#dc8a3d', '#70a5d3']
+    colors = ['#3b8ed0', '#2fa572', '#eaaa00', '#d35b5b', '#8a6f9c', '#5fd3b3', '#dc8a3d', '#70a5d3']
     wedges, texts, autotexts = plt.pie(totals, labels=categories, autopct='%1.1f%%', 
                                        startangle=140, colors=colors, textprops=dict(color="w")) 
     plt.setp(autotexts, size=11, weight="bold")
