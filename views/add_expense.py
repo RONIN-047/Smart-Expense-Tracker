@@ -41,48 +41,58 @@ class AddExpenseFrame(ctk.CTkFrame):
         form.pack(pady=40, padx=40, anchor='nw', fill='both', expand=True)
         form.grid_columnconfigure(0, weight=1)
         
-        # Type Selector
-        ctk.CTkLabel(form, text="Transaction Type", font=("Arial", 16, "bold"), text_color=PURPLE_ACCENT).grid(row=0, column=0, sticky='w', pady=(0,8))
+        # Type Selector - Custom Tab Style
         self.trans_type = ctk.StringVar(value="Expense")
-        self.seg_type = ctk.CTkSegmentedButton(form, values=["Expense", "Income"], variable=self.trans_type, 
-                                               command=self._update_preview, height=50, font=("Arial", 15, "bold"),
-                                               selected_color=PURPLE_ACCENT, selected_hover_color="#9a7ad6")
-        self.seg_type.grid(row=1, column=0, sticky='ew', pady=(0,5))
         
-        # Additional Note for Type
-        self.lbl_type_note = ctk.CTkLabel(form, text="Select if this is money spent (Expense) or money received (Income)", 
-                                           font=("Arial", 12), text_color="#888")
-        self.lbl_type_note.grid(row=2, column=0, sticky='w', pady=(0,20))
+        tab_container = ctk.CTkFrame(form, fg_color="transparent")
+        tab_container.grid(row=0, column=0, sticky='ew', pady=(0,5))
+        tab_container.grid_columnconfigure(0, weight=1)
+        tab_container.grid_columnconfigure(1, weight=1)
+        
+        self.btn_tab_expense = ctk.CTkButton(tab_container, text="Expense", height=45, corner_radius=10,
+                                            fg_color=PURPLE_ACCENT, text_color="#000000", font=("Arial", 14, "bold"),
+                                            command=lambda: self._set_type("Expense"))
+        self.btn_tab_expense.grid(row=0, column=0, sticky='ew', padx=(0, 2))
+        
+        self.btn_tab_income = ctk.CTkButton(tab_container, text="Income", height=45, corner_radius=10,
+                                           fg_color=PURPLE_BORDER, text_color="white", font=("Arial", 14, "bold"),
+                                           command=lambda: self._set_type("Income"))
+        self.btn_tab_income.grid(row=0, column=1, sticky='ew', padx=(2, 0))
+        
+        # Additional note for the tabs
+        self.lbl_type_note = ctk.CTkLabel(form, text="Choose 'Expense' for spending and 'Income' for money received.", 
+                                         font=("Arial", 12), text_color=PURPLE_LABEL)
+        self.lbl_type_note.grid(row=1, column=0, sticky='w', pady=(0, 25))
         
         # Amount Field
-        ctk.CTkLabel(form, text="Amount (Rs)", font=("Arial", 16, "bold"), text_color=PURPLE_ACCENT).grid(row=3, column=0, sticky='w', pady=(0,8))
+        ctk.CTkLabel(form, text="Amount (Rs)", font=("Arial", 16, "bold"), text_color=PURPLE_ACCENT).grid(row=2, column=0, sticky='w', pady=(0,8))
         self.ent_amount = ctk.CTkEntry(form, height=50, placeholder_text="e.g. 1500", fg_color=PURPLE_INPUT_BG, border_color=PURPLE_BORDER, font=("Arial", 16))
-        self.ent_amount.grid(row=4, column=0, sticky='ew', pady=(0,25))
+        self.ent_amount.grid(row=3, column=0, sticky='ew', pady=(0,25))
         
         # Category Tags
-        ctk.CTkLabel(form, text="Category Tags", font=("Arial", 16, "bold"), text_color=PURPLE_ACCENT).grid(row=5, column=0, sticky='w', pady=(0,8))
+        ctk.CTkLabel(form, text="Category Tags", font=("Arial", 16, "bold"), text_color=PURPLE_ACCENT).grid(row=4, column=0, sticky='w', pady=(0,8))
         self.tags_frame = ctk.CTkFrame(form, fg_color="transparent")
-        self.tags_frame.grid(row=6, column=0, sticky='ew', pady=(0, 10))
+        self.tags_frame.grid(row=5, column=0, sticky='ew', pady=(0, 10))
         self.selected_tag = ctk.StringVar(value="")
         self.bubble_buttons = []
         self.ent_custom_tag = ctk.CTkEntry(form, height=50, placeholder_text="Type custom tag...", fg_color=PURPLE_INPUT_BG, border_color=PURPLE_BORDER, font=("Arial", 15))
         
         # Date Field
-        ctk.CTkLabel(form, text="Date (YYYY-MM-DD)", font=("Arial", 16, "bold"), text_color=PURPLE_ACCENT).grid(row=8, column=0, sticky='w', pady=(0,8))
+        ctk.CTkLabel(form, text="Date (YYYY-MM-DD)", font=("Arial", 16, "bold"), text_color=PURPLE_ACCENT).grid(row=7, column=0, sticky='w', pady=(0,8))
         self.selected_date = ctk.StringVar(value=utils.get_today())
         self.btn_date = ctk.CTkButton(form, textvariable=self.selected_date, height=50, 
                                         fg_color=PURPLE_INPUT_BG, hover_color="#2a1a3e", text_color="white", border_width=1, border_color=PURPLE_BORDER,
                                         command=self.open_calendar, font=("Arial", 16))
-        self.btn_date.grid(row=9, column=0, sticky='ew', pady=(0,25))
+        self.btn_date.grid(row=8, column=0, sticky='ew', pady=(0,25))
         
         # Note Field
-        ctk.CTkLabel(form, text="Note (Optional)", font=("Arial", 16, "bold"), text_color=PURPLE_ACCENT).grid(row=10, column=0, sticky='w', pady=(0,8))
+        ctk.CTkLabel(form, text="Note (Optional)", font=("Arial", 16, "bold"), text_color=PURPLE_ACCENT).grid(row=9, column=0, sticky='w', pady=(0,8))
         self.ent_note = ctk.CTkEntry(form, height=50, placeholder_text="What was this for?", fg_color=PURPLE_INPUT_BG, border_color=PURPLE_BORDER, font=("Arial", 15))
-        self.ent_note.grid(row=11, column=0, sticky='ew', pady=(0,30))
+        self.ent_note.grid(row=10, column=0, sticky='ew', pady=(0,30))
         
         # Buttons
         btn_frame = ctk.CTkFrame(form, fg_color="transparent")
-        btn_frame.grid(row=13, column=0, sticky='ew')
+        btn_frame.grid(row=11, column=0, sticky='ew')
         ctk.CTkButton(btn_frame, text="Add Transaction", font=("Arial", 16, "bold"), height=50, fg_color=PURPLE_ACCENT, text_color="#000000", hover_color="#9a7ad6", command=self.save_expense).pack(side='left', padx=(0, 15), expand=True, fill='x')
         ctk.CTkButton(btn_frame, text="Clear", font=("Arial", 16, "bold"), height=50, fg_color="transparent", border_width=1, border_color=PURPLE_BORDER, hover_color="#2a1a3e", command=self.clear_form).pack(side='left', expand=True, fill='x')
         
@@ -129,6 +139,16 @@ class AddExpenseFrame(ctk.CTkFrame):
         self.ent_amount.bind('<KeyRelease>', self._update_preview)
         self.ent_note.bind('<KeyRelease>', self._update_preview)
         
+    def _set_type(self, t_type):
+        self.trans_type.set(t_type)
+        if t_type == "Expense":
+            self.btn_tab_expense.configure(fg_color=PURPLE_ACCENT, text_color="#000000")
+            self.btn_tab_income.configure(fg_color=PURPLE_BORDER, text_color="white")
+        else:
+            self.btn_tab_expense.configure(fg_color=PURPLE_BORDER, text_color="white")
+            self.btn_tab_income.configure(fg_color=PURPLE_ACCENT, text_color="#000000")
+        self._update_preview()
+
     def _select_tag(self, tag_val):
         self.selected_tag.set(tag_val)
         for val, btn in self.bubble_buttons:
@@ -137,7 +157,7 @@ class AddExpenseFrame(ctk.CTkFrame):
             else:
                 btn.configure(fg_color=PURPLE_BORDER, text_color="white")
         if tag_val == "Other":
-            self.ent_custom_tag.grid(row=7, column=0, sticky='ew', pady=(0, 25))
+            self.ent_custom_tag.grid(row=6, column=0, sticky='ew', pady=(0, 25))
         else:
             self.ent_custom_tag.grid_remove()
             self.ent_custom_tag.delete(0, 'end')

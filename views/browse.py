@@ -150,11 +150,17 @@ class ViewExpensesFrame(ctk.CTkFrame):
         ctk.CTkLabel(inner, text=f"{prefix}{utils.format_currency(amount)}", font=("Arial", 20, "bold"), 
                     text_color=amt_color, width=150, anchor='e').grid(row=0, column=3, sticky='e', padx=(0, 20))
         
-        # Delete button - more prominent
+        # Edit button - ✏️
+        ctk.CTkButton(inner, text="✏️", width=40, height=34, fg_color="#1a1a2e", 
+                     text_color=COLOR_PRIMARY, border_width=1, border_color=COLOR_PRIMARY,
+                     hover_color="#16213e", font=("Arial", 16),
+                     command=lambda: self._open_edit_dialog(exp_id)).grid(row=0, column=4, sticky='e', padx=(0, 10))
+        
+        # Delete button - ✕
         ctk.CTkButton(inner, text="✕", width=40, height=34, fg_color="#2a1a1a", 
                      text_color=COLOR_DANGER, border_width=1, border_color=COLOR_DANGER,
                      hover_color="#3d1e1e", font=("Arial", 16, "bold"),
-                     command=lambda: self._delete_expense(exp_id)).grid(row=0, column=4, sticky='e')
+                     command=lambda: self._delete_expense(exp_id)).grid(row=0, column=5, sticky='e')
 
     def _group_expenses_by_date(self, expenses):
         """Group expenses by date"""
@@ -245,3 +251,91 @@ class ViewExpensesFrame(ctk.CTkFrame):
             if expense.delete_expense(exp_id):
                 analytics.invalidate_chart_cache()
                 self.load_expenses()
+
+    def _open_edit_dialog(self, exp_id):
+        """Open a modal dialog to edit the transaction"""
+        data = expense.get_expense_by_id(exp_id)
+        if not data:
+            return
+            
+        dialog = EditTransactionDialog(self.winfo_toplevel(), data, on_save=self.load_expenses)
+        dialog.focus()
+
+class EditTransactionDialog(ctk.CTkToplevel):
+    def __init__(self, parent, data, on_save):
+        super().__init__(parent)
+        self.title("Edit Transaction")
+        self.geometry("500x650")
+        self.on_save = on_save
+        self.exp_id = data['id']
+        
+        # UI Setup
+        self.configure(fg_color=COLOR_BG)
+        self.transient(parent)
+        self.grab_set()
+        
+        container = ctk.CTkFrame(self, fg_color="transparent")
+        container.pack(fill='both', expand=True, padx=40, pady=40)
+        
+        ctk.CTkLabel(container, text="Edit Transaction", font=("Arial", 28, "bold")).pack(anchor='w', pady=(0, 30))
+        
+        # Type
+        self.var_type = ctk.StringVar(value=data['type'])
+        type_frame = ctk.CTkFrame(container, fg_color="transparent")
+        type_frame.pack(fill='x', pady=(0, 20))
+        ctk.CTkLabel(type_frame, text="Type:", font=("Arial", 14, "bold")).pack(side='left', padx=(0, 20))
+        ctk.CTkSegmentedButton(type_frame, values=["Expense", "Income"], variable=self.var_type).pack(side='left', fill='x', expand=True)
+        
+        # Amount
+        ctk.CTkLabel(container, text="Amount (Rs):", font=("Arial", 14, "bold")).pack(anchor='w', pady=(0, 5))
+        self.ent_amount = ctk.CTkEntry(container, height=45, font=("Arial", 16))
+        self.ent_amount.insert(0, str(data['amount']))
+        self.ent_amount.pack(fill='x', pady=(0, 20))
+        
+        # Category
+        ctk.CTkLabel(container, text="Category:", font=("Arial", 14, "bold")).pack(anchor='w', pady=(0, 5))
+        self.var_cat = ctk.StringVar(value=data['category'])
+        self.cb_cat = ctk.CTkComboBox(container, variable=self.var_cat, values=expense.get_all_categories(), height=45)
+        self.cb_cat.pack(fill='x', pady=(0, 20))
+        
+        # Date
+        ctk.CTkLabel(container, text="Date (YYYY-MM-DD):", font=("Arial", 14, "bold")).pack(anchor='w', pady=(0, 5))
+        self.ent_date = ctk.CTkEntry(container, height=45, font=("Arial", 16))
+        self.ent_date.insert(0, data['date'])
+        self.ent_date.pack(fill='x', pady=(0, 20))
+        
+        # Note
+        ctk.CTkLabel(container, text="Note:", font=("Arial", 14, "bold")).pack(anchor='w', pady=(0, 5))
+        self.ent_note = ctk.CTkEntry(container, height=45, font=("Arial", 16))
+        self.ent_note.insert(0, data['note'] or "")
+        self.ent_note.pack(fill='x', pady=(0, 30))
+        
+        # Buttons
+        btn_save = ctk.CTkButton(container, text="Save Changes", height=50, font=("Arial", 16, "bold"),
+                                fg_color=COLOR_PRIMARY, hover_color="#0066cc", command=self._save)
+        btn_save.pack(fill='x', pady=(0, 10))
+        
+        ctk.CTkButton(container, text="Cancel", height=45, font=("Arial", 14),
+                     fg_color="transparent", border_width=1, border_color="#333344",
+                     command=self.destroy).pack(fill='x')
+        
+    def _save(self):
+        amt, cat, date, note, t_type = self.ent_amount.get(), self.var_cat.get(), self.ent_date.get(), self.ent_note.get(), self.var_type.get()
+        
+        # Basic validation
+        try:
+            float(amt)
+        except:
+            messagebox.showerror("Error", "Invalid amount.")
+            return
+            
+        if not utils.validate_date(date)[0]:
+            messagebox.showerror("Error", "Invalid date format (YYYY-MM-DD).")
+            return
+            
+        if expense.update_expense(self.exp_id, amt, cat, date, note, t_type):
+            analytics.invalidate_chart_cache()
+            self.on_save()
+            self.destroy()
+        else:
+            messagebox.showerror("Error", "Failed to update transaction.")

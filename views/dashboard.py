@@ -19,57 +19,38 @@ class DashboardFrame(ctk.CTkFrame):
         
         # Welcome Header - MUCH more breathing room
         header = ctk.CTkFrame(self.scroll, fg_color="transparent")
-        header.pack(fill='x', pady=(0, 50))  # Way more space
+        header.pack(fill='x', pady=(0, 50))
+        
+        # Top line: Greeting on left, Balance on right
+        top_line = ctk.CTkFrame(header, fg_color="transparent")
+        top_line.pack(fill='x', anchor='n')
         
         now = datetime.datetime.now()
         greeting = "Good Evening 🌙"
         if now.hour < 12: greeting = "Good Morning ☀️"
         elif now.hour < 17: greeting = "Good Afternoon 🌤️"
         
-        # Left side: Greeting
-        left_header = ctk.CTkFrame(header, fg_color="transparent")
-        left_header.pack(side='left', anchor='w')
+        greeting_label = ctk.CTkLabel(top_line, text=greeting, font=("Arial", 40, "bold"))
+        greeting_label.pack(side='left')
         
-        greeting_label = ctk.CTkLabel(left_header, text=greeting, font=("Arial", 40, "bold"))
-        greeting_label.pack(anchor='w')
-        date_label = ctk.CTkLabel(left_header, text=now.strftime('%A, %b %d, %Y'), font=("Arial", 16), text_color="grey")
-        date_label.pack(anchor='w', pady=(8, 0))
+        self.val_balance_top = ctk.StringVar(value="Balance: Rs 0")
+        self.lbl_balance_top = ctk.CTkLabel(top_line, textvariable=self.val_balance_top, font=("Arial", 32, "bold"), text_color=COLOR_PRIMARY)
+        self.lbl_balance_top.pack(side='right')
         
-        # Right side: Total Balance
-        right_header = ctk.CTkFrame(header, fg_color="transparent")
-        right_header.pack(side='right', anchor='e', pady=(5, 0))
-        
-        ctk.CTkLabel(right_header, text="TOTAL BALANCE", font=("Arial", 12, "bold"), text_color="#888").pack(anchor='e')
-        self.val_top_balance = ctk.StringVar(value="Rs 0.00")
-        self.lbl_top_balance = ctk.CTkLabel(right_header, textvariable=self.val_top_balance, font=("Arial", 32, "bold"), text_color=COLOR_PRIMARY)
-        self.lbl_top_balance.pack(anchor='e')
+        # Date label below greeting
+        date_label = ctk.CTkLabel(header, text=now.strftime('%A, %b %d, %Y'), font=("Arial", 16), text_color="grey")
+        date_label.pack(anchor='w', pady=(5, 0))
         
         # Summary Cards Row - MUCH better spacing
         cards_frame = ctk.CTkFrame(self.scroll, fg_color="transparent")
-        cards_frame.pack(fill='x', pady=(0, 50))  # Way more space after
-        
-        self.val_balance = ctk.StringVar(value="Rs 0")
+        cards_frame.pack(fill='x', pady=(0, 50))
+        self.val_total_exp = ctk.StringVar(value="Rs 0")
         self.val_month_exp = ctk.StringVar(value="Rs 0")
         self.val_month_inc = ctk.StringVar(value="Rs 0")
-        self.val_warn  = ctk.StringVar(value="0")
         
-        # Card 1: Active Warnings
-        self.card_warn_obj = self._create_summary_card(cards_frame, "Active Warnings", self.val_warn, COLOR_DANGER, "⚠️", "#cc0000", "#ff6b6b")
-        self.btn_view_budgets = ctk.CTkButton(
-            self.card_warn_obj, text="View Budgets", width=110, height=28, 
-            font=("Arial", 12, "bold"), fg_color=COLOR_DANGER, 
-            hover_color="#ff4a4a", command=lambda: self.winfo_toplevel().show_frame("Budget")
-        )
-        self.card_warn_obj.pack(side='right', fill='x', expand=True, padx=(20, 0))
-        
-        # Card 2: This Month Expenses
+        self._create_summary_card(cards_frame, "Monthly Income", self.val_month_inc, COLOR_SUCCESS, "📈", "#006400", "#00d2ff").pack(side='right', fill='x', expand=True, padx=(20, 0))
         self._create_summary_card(cards_frame, "Monthly Expenses", self.val_month_exp, COLOR_DANGER, "📉", "#8b0000", "#ff6b6b").pack(side='right', fill='x', expand=True, padx=20)
-        
-        # Card 3: This Month Income
-        self._create_summary_card(cards_frame, "Monthly Income", self.val_month_inc, COLOR_SUCCESS, "📈", "#006400", "#00d2ff").pack(side='right', fill='x', expand=True, padx=20)
-        
-        # Card 4: Total Balance
-        self._create_summary_card(cards_frame, "Net Balance", self.val_balance, COLOR_PRIMARY, "💰", "#1a1a2e", "#00d2ff").pack(side='right', fill='x', expand=True, padx=(0, 20))
+        self._create_summary_card(cards_frame, "Total Expenses", self.val_total_exp, COLOR_PRIMARY, "💰", "#1a1a2e", "#00d2ff").pack(side='right', fill='x', expand=True, padx=(0, 20))
         
         # Recent Transactions Section - ALIGNED with cards
         section_label = ctk.CTkLabel(self.scroll, text="Recent Transactions", font=("Arial", 24, "bold"))
@@ -117,10 +98,9 @@ class DashboardFrame(ctk.CTkFrame):
         frame._lbl_val = lbl_val
         return frame
     
-    def _render_recent_card(self, col, date, category, amount, note, t_type="Expense"):
+    def _render_recent_card(self, col, date, category, amount, note):
         """Render recent transaction with side icon box - spacious and polished"""
-        is_income = (t_type == "Income")
-        cat_color = COLOR_SUCCESS if is_income else utils.get_category_color(category)
+        cat_color = utils.get_category_color(category)
         card = ctk.CTkFrame(self.recent_cards_frame, fg_color=COLOR_SURFACE, corner_radius=18, 
                             border_width=1, border_color="#333344", height=160)  # More height
         card.grid(row=0, column=col, sticky='nsew', padx=10, pady=5)  # Better horizontal spacing
@@ -153,10 +133,8 @@ class DashboardFrame(ctk.CTkFrame):
                     text_color="#888").pack(side='right')
         
         # Amount - bigger and more prominent
-        amt_color = COLOR_SUCCESS if is_income else "white"
-        prefix = "+" if is_income else "-"
-        ctk.CTkLabel(content, text=f"{prefix}{amount}", font=("Arial", 28, "bold"), 
-                    text_color=amt_color).pack(anchor='w', pady=(10, 8))
+        ctk.CTkLabel(content, text=amount, font=("Arial", 28, "bold"), 
+                    text_color="white").pack(anchor='w', pady=(10, 8))
         
         # Note
         display_note = note if note else "—"
@@ -242,27 +220,22 @@ class DashboardFrame(ctk.CTkFrame):
         self._last_budget_hash = budget_hash
 
         expenses = expense.get_all_expenses()
-        
-        # Calculate Balance, Income, Expenses
         balance = analytics.get_total_balance()
+        total_exp = sum(e['amount'] for e in expenses if e['type'] == 'Expense')
         curr_month = datetime.datetime.now().strftime('%Y-%m')
-        month_inc = analytics.get_monthly_income(curr_month)
         month_exp = sum(e['amount'] for e in expenses if e['date'].startswith(curr_month) and e['type'] == 'Expense')
+        month_inc = analytics.get_monthly_income(curr_month)
         
-        self.val_balance.set(utils.format_currency(balance))
-        self.val_top_balance.set(utils.format_currency(balance))
+        self.val_total_exp.set(utils.format_currency(total_exp))
+        self.val_balance_top.set(f"Balance: {utils.format_currency(balance)}")
         self.val_month_inc.set(utils.format_currency(month_inc))
         self.val_month_exp.set(utils.format_currency(month_exp))
         
+        # Budget warning sidebar highlight
         budgets = analytics.get_budget_status()
         warnings = sum(1 for b in budgets if b[3] == 'OVER!')
-        self.val_warn.set(str(warnings))
-        if hasattr(self.card_warn_obj, '_lbl_val'):
-            self.card_warn_obj._lbl_val.configure(text_color=COLOR_DANGER if warnings > 0 else COLOR_SUCCESS)
-        if warnings > 0:
-            self.btn_view_budgets.place(relx=0.95, rely=0.15, anchor='ne')
-        else:
-            self.btn_view_budgets.place_forget()
+        if hasattr(self.winfo_toplevel(), 'update_sidebar_budget_warning'):
+            self.winfo_toplevel().update_sidebar_budget_warning(warnings)
         
         # Render 3 recent transactions
         clear_frame(self.recent_cards_frame)
@@ -271,7 +244,7 @@ class DashboardFrame(ctk.CTkFrame):
         self.recent_cards_frame.grid_columnconfigure(2, weight=1)
         if expenses:
             for i, e in enumerate(expenses[:3]):
-                self._render_recent_card(i, e['date'], e['category'], utils.format_currency(e['amount']), e['note'], e['type'])
+                self._render_recent_card(i, e['date'], e['category'], utils.format_currency(e['amount']), e['note'])
         else:
             ctk.CTkLabel(self.recent_cards_frame, text="No expenses yet. Add your first one!", text_color="grey", font=("Arial", 16)).grid(row=0, column=0, columnspan=3, pady=50)
         

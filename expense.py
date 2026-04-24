@@ -30,6 +30,17 @@ def get_all_expenses() -> List[sqlite3.Row]:
         print(f"Error fetching expenses: {e}")
         return []
 
+def get_expense_by_id(expense_id: int) -> sqlite3.Row:
+    """Return a single expense row by its ID."""
+    try:
+        with db.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM expenses WHERE id = ?', (expense_id,))
+            return cursor.fetchone()
+    except sqlite3.Error as e:
+        print(f"Error fetching expense by id: {e}")
+        return None
+
 def get_expenses_by_category(category: str) -> List[sqlite3.Row]:
     """Return all expenses for a specific category."""
     try:
@@ -55,6 +66,22 @@ def delete_expense(expense_id: int) -> bool:
             return True
     except sqlite3.Error as e:
         print(f"Error deleting expense: {e}")
+        return False
+
+def update_expense(expense_id: int, amount: float | str, category: str, date: str, note: str, trans_type: str) -> bool:
+    """Update an existing transaction in the database. Returns True on success."""
+    try:
+        with db.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                UPDATE expenses 
+                SET amount = ?, category = ?, date = ?, note = ?, type = ?
+                WHERE id = ?
+            ''', (float(amount), category, date, note, trans_type, expense_id))
+            conn.commit()
+            return True
+    except sqlite3.Error as e:
+        print(f"Error updating transaction: {e}")
         return False
 
 def get_all_categories() -> List[str]:

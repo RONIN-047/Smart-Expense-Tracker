@@ -75,6 +75,8 @@ class App(ctk.CTk):
         
         self.frames = {}
         self.nav_buttons = {}
+        self._budget_warnings = 0
+        self._active_frame = "Dashboard"
         
         # Define sections with views
         sections = [
@@ -133,17 +135,43 @@ class App(ctk.CTk):
         
     def show_frame(self, target):
         """Switch to the given view - populate before raising to avoid flash."""
+        self._active_frame = target
         for name, btn in self.nav_buttons.items():
-            if name == target:
+            if name == "Budget" and self._budget_warnings > 0:
+                # Keep warning highlight
+                btn.configure(fg_color="#4a1a1a", text_color="#ff6b6b")
+                btn.configure(text=f"  💰  Budget ({self._budget_warnings})")
+            elif name == target:
                 btn.configure(fg_color="#16213e", text_color="white")
+                if name == "Budget": btn.configure(text="  💰  Budget")
             else:
                 btn.configure(fg_color="transparent", text_color="#888")
+                if name == "Budget": btn.configure(text="  💰  Budget")
         
         frame = self.frames[target]
         # Populate BEFORE raising - no ghost content flash
         if hasattr(frame, 'on_show'):
             frame.on_show()
         frame.tkraise()
+
+    def update_sidebar_budget_warning(self, count):
+        """Highlight the Budget button if there are warnings."""
+        self._budget_warnings = count
+        btn = self.nav_buttons.get("Budget")
+        if not btn:
+            return
+            
+        if count > 0:
+            # Glow effect: lighter red background
+            btn.configure(fg_color="#4a1a1a", text_color="#ff6b6b")
+            btn.configure(text=f"  💰  Budget ({count})")
+        else:
+            # Restore default based on current active state
+            if self._active_frame == "Budget":
+                btn.configure(fg_color="#16213e", text_color="white")
+            else:
+                btn.configure(fg_color="transparent", text_color="#888")
+            btn.configure(text="  💰  Budget")
 
 
 if __name__ == "__main__":
