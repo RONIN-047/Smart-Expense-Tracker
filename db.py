@@ -66,20 +66,3 @@ def save_budget(category: str, limit: float) -> bool:
     except sqlite3.Error as e:
         print(f"Error saving budget: {e}")
         return False
-
-# Quick test block
-if __name__ == "__main__":
-    print("--- Testing db.py ---")
-    db_path = get_db_path()
-    print(f"Database Path Target: {db_path}")
-    
-    print("\nInitialising DB and creating tables if missing...")
-    success = initialise_db()
-    if success:
-        print(f"Success! Database ready.")
-        print(f"File exists at path: {db_path.exists()}")
-        print("\nTesting save_budget()...")
-        save_success = save_budget("Food", 2500)
-        print(f"Save 'Food' budget (2500): {'Success' if save_success else 'Failed'}")
-    else:
-        print("Failed to initialise database.")
