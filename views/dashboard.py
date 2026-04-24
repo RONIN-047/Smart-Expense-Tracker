@@ -26,21 +26,23 @@ class DashboardFrame(ctk.CTkFrame):
         if now.hour < 12: greeting = "Good Morning ☀️"
         elif now.hour < 17: greeting = "Good Afternoon 🌤️"
         
-        # Make sure greeting shows!
-        greeting_label = ctk.CTkLabel(header, text=greeting, font=("Arial", 40, "bold"))
-        greeting_label.pack(side='left', anchor='w')
+        # Left side: Greeting
+        left_header = ctk.CTkFrame(header, fg_color="transparent")
+        left_header.pack(side='left', anchor='w')
         
-        # Balance Info on Top Right
-        self.balance_info_frame = ctk.CTkFrame(header, fg_color="transparent")
-        self.balance_info_frame.pack(side='right', anchor='ne', pady=(5, 0))
+        greeting_label = ctk.CTkLabel(left_header, text=greeting, font=("Arial", 40, "bold"))
+        greeting_label.pack(anchor='w')
+        date_label = ctk.CTkLabel(left_header, text=now.strftime('%A, %b %d, %Y'), font=("Arial", 16), text_color="grey")
+        date_label.pack(anchor='w', pady=(8, 0))
         
-        ctk.CTkLabel(self.balance_info_frame, text="TOTAL BALANCE", font=("Arial", 12, "bold"), text_color="#888").pack(anchor='e')
-        self.lbl_top_balance = ctk.CTkLabel(self.balance_info_frame, text="Rs 0.00", font=("Arial", 32, "bold"), text_color=COLOR_PRIMARY)
+        # Right side: Total Balance
+        right_header = ctk.CTkFrame(header, fg_color="transparent")
+        right_header.pack(side='right', anchor='e', pady=(5, 0))
+        
+        ctk.CTkLabel(right_header, text="TOTAL BALANCE", font=("Arial", 12, "bold"), text_color="#888").pack(anchor='e')
+        self.val_top_balance = ctk.StringVar(value="Rs 0.00")
+        self.lbl_top_balance = ctk.CTkLabel(right_header, textvariable=self.val_top_balance, font=("Arial", 32, "bold"), text_color=COLOR_PRIMARY)
         self.lbl_top_balance.pack(anchor='e')
-
-        # Date below greeting
-        date_label = ctk.CTkLabel(self.scroll, text=now.strftime('%A, %b %d, %Y'), font=("Arial", 16), text_color="grey")
-        date_label.place(in_=greeting_label, relx=0, rely=1.0, y=8, anchor='nw')
         
         # Summary Cards Row - MUCH better spacing
         cards_frame = ctk.CTkFrame(self.scroll, fg_color="transparent")
@@ -49,10 +51,25 @@ class DashboardFrame(ctk.CTkFrame):
         self.val_balance = ctk.StringVar(value="Rs 0")
         self.val_month_exp = ctk.StringVar(value="Rs 0")
         self.val_month_inc = ctk.StringVar(value="Rs 0")
+        self.val_warn  = ctk.StringVar(value="0")
         
-        self._create_summary_card(cards_frame, "Monthly Income", self.val_month_inc, COLOR_SUCCESS, "📈", "#006400", "#00d2ff").pack(side='right', fill='x', expand=True, padx=(20, 0))
+        # Card 1: Active Warnings
+        self.card_warn_obj = self._create_summary_card(cards_frame, "Active Warnings", self.val_warn, COLOR_DANGER, "⚠️", "#cc0000", "#ff6b6b")
+        self.btn_view_budgets = ctk.CTkButton(
+            self.card_warn_obj, text="View Budgets", width=110, height=28, 
+            font=("Arial", 12, "bold"), fg_color=COLOR_DANGER, 
+            hover_color="#ff4a4a", command=lambda: self.winfo_toplevel().show_frame("Budget")
+        )
+        self.card_warn_obj.pack(side='right', fill='x', expand=True, padx=(20, 0))
+        
+        # Card 2: This Month Expenses
         self._create_summary_card(cards_frame, "Monthly Expenses", self.val_month_exp, COLOR_DANGER, "📉", "#8b0000", "#ff6b6b").pack(side='right', fill='x', expand=True, padx=20)
-        self._create_summary_card(cards_frame, "Total Balance", self.val_balance, COLOR_PRIMARY, "🏛️", "#1a1a2e", "#00d2ff").pack(side='right', fill='x', expand=True, padx=(0, 20))
+        
+        # Card 3: This Month Income
+        self._create_summary_card(cards_frame, "Monthly Income", self.val_month_inc, COLOR_SUCCESS, "📈", "#006400", "#00d2ff").pack(side='right', fill='x', expand=True, padx=20)
+        
+        # Card 4: Total Balance
+        self._create_summary_card(cards_frame, "Net Balance", self.val_balance, COLOR_PRIMARY, "💰", "#1a1a2e", "#00d2ff").pack(side='right', fill='x', expand=True, padx=(0, 20))
         
         # Recent Transactions Section - ALIGNED with cards
         section_label = ctk.CTkLabel(self.scroll, text="Recent Transactions", font=("Arial", 24, "bold"))
@@ -233,9 +250,19 @@ class DashboardFrame(ctk.CTkFrame):
         month_exp = sum(e['amount'] for e in expenses if e['date'].startswith(curr_month) and e['type'] == 'Expense')
         
         self.val_balance.set(utils.format_currency(balance))
-        self.lbl_top_balance.configure(text=utils.format_currency(balance))
+        self.val_top_balance.set(utils.format_currency(balance))
         self.val_month_inc.set(utils.format_currency(month_inc))
         self.val_month_exp.set(utils.format_currency(month_exp))
+        
+        budgets = analytics.get_budget_status()
+        warnings = sum(1 for b in budgets if b[3] == 'OVER!')
+        self.val_warn.set(str(warnings))
+        if hasattr(self.card_warn_obj, '_lbl_val'):
+            self.card_warn_obj._lbl_val.configure(text_color=COLOR_DANGER if warnings > 0 else COLOR_SUCCESS)
+        if warnings > 0:
+            self.btn_view_budgets.place(relx=0.95, rely=0.15, anchor='ne')
+        else:
+            self.btn_view_budgets.place_forget()
         
         # Render 3 recent transactions
         clear_frame(self.recent_cards_frame)
