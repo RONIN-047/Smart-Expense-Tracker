@@ -4,19 +4,19 @@ import db
 import utils
 from typing import List
 
-def add_expense(amount: float | str, category: str, date: str, note: str = '') -> bool:
-    """Insert a new expense into the database. Returns True on success."""
+def add_expense(amount: float | str, category: str, date: str, note: str = '', trans_type: str = 'Expense') -> bool:
+    """Insert a new transaction into the database. Returns True on success."""
     try:
         with db.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
-                INSERT INTO expenses (amount, category, date, note)
-                VALUES (?, ?, ?, ?)
-            ''', (float(amount), category, date, note))
+                INSERT INTO expenses (amount, category, date, note, type)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (float(amount), category, date, note, trans_type))
             conn.commit()
             return True
     except sqlite3.Error as e:
-        print(f"Error adding expense: {e}")
+        print(f"Error adding transaction: {e}")
         return False
 
 def get_all_expenses() -> List[sqlite3.Row]:

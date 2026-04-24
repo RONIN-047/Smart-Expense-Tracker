@@ -48,6 +48,7 @@ def get_category_summary() -> List[sqlite3.Row]:
             cursor.execute('''
                 SELECT category, SUM(amount) as total 
                 FROM expenses 
+                WHERE type = 'Expense'
                 GROUP BY category 
                 ORDER BY total DESC
             ''')
@@ -64,6 +65,7 @@ def get_monthly_summary() -> List[sqlite3.Row]:
             cursor.execute('''
                 SELECT strftime('%Y-%m', date) as month_str, SUM(amount) as total 
                 FROM expenses 
+                WHERE type = 'Expense'
                 GROUP BY month_str 
                 ORDER BY month_str DESC
             ''')
@@ -81,7 +83,7 @@ def get_budget_status() -> List[Tuple[str, float, float, str]]:
             cursor.execute('''
                 SELECT b.category, b.limit_amount, COALESCE(SUM(e.amount), 0) as spent
                 FROM budgets b 
-                LEFT JOIN expenses e ON b.category = e.category AND e.date LIKE ?
+                LEFT JOIN expenses e ON b.category = e.category AND e.date LIKE ? AND e.type = 'Expense'
                 WHERE b.category != 'GLOBAL_TOTAL'
                 GROUP BY b.category
             ''', (curr_month,))   
@@ -97,7 +99,7 @@ def get_budget_status() -> List[Tuple[str, float, float, str]]:
             cursor.execute("SELECT limit_amount FROM budgets WHERE category = 'GLOBAL_TOTAL'")
             global_budget = cursor.fetchone()
             if global_budget:
-                cursor.execute("SELECT SUM(amount) as spent FROM expenses WHERE date LIKE ?", (curr_month,))
+                cursor.execute("SELECT SUM(amount) as spent FROM expenses WHERE date LIKE ? AND type = 'Expense'", (curr_month,))
                 global_spent = cursor.fetchone()['spent'] or 0
                 limit = global_budget['limit_amount']
                 status = 'OVER!' if global_spent > limit else 'OK'
@@ -107,6 +109,41 @@ def get_budget_status() -> List[Tuple[str, float, float, str]]:
     except sqlite3.Error as e:
         print(f"Error fetching budget status: {e}")
         return []
+
+def get_total_balance() -> float:
+    """Return total balance (Income - Expense)."""
+    try:
+        with db.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT 
+                    SUM(CASE WHEN type = 'Income' THEN amount ELSE 0 END) - 
+                    SUM(CASE WHEN type = 'Expense' THEN amount ELSE 0 END) as balance
+                FROM expenses
+            ''')
+            row = cursor.fetchone()
+            return row['balance'] if row and row['balance'] is not None else 0.0
+    except sqlite3.Error as e:
+        print(f"Error calculating balance: {e}")
+        return 0.0
+
+def get_monthly_income(month_str: str = None) -> float:
+    """Return total income for a specific month (YYYY-MM). Defaults to current month."""
+    if not month_str:
+        month_str = datetime.datetime.now().strftime('%Y-%m')
+    try:
+        with db.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT SUM(amount) as total 
+                FROM expenses 
+                WHERE type = 'Income' AND date LIKE ?
+            ''', (month_str + '%',))
+            row = cursor.fetchone()
+            return row['total'] if row and row['total'] is not None else 0.0
+    except sqlite3.Error as e:
+        print(f"Error fetching monthly income: {e}")
+        return 0.0
 
 def get_category_bar_chart_figure() -> Any:
     """Generate and return a matplotlib figure for category totals."""

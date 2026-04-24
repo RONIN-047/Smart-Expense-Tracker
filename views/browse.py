@@ -19,7 +19,7 @@ class ViewExpensesFrame(ctk.CTkFrame):
         header = ctk.CTkFrame(self, fg_color="transparent")
         header.pack(fill='x', padx=30, pady=(30, 20))
         
-        ctk.CTkLabel(header, text="Browse Expenses", font=("Arial", 32, "bold")).pack(side='left')
+        ctk.CTkLabel(header, text="Browse Transactions", font=("Arial", 32, "bold")).pack(side='left')
         
         filter_frame = ctk.CTkFrame(header, fg_color="transparent")
         filter_frame.pack(side='right')
@@ -48,7 +48,7 @@ class ViewExpensesFrame(ctk.CTkFrame):
         self.lbl_showing = ctk.CTkLabel(bottom, text="", font=("Arial", 14), text_color="#888")
         self.lbl_showing.pack(side='left', padx=20)
         
-        self.lbl_total = ctk.CTkLabel(bottom, text="Total: Rs 0", font=("Arial", 24, "bold"), text_color=COLOR_PRIMARY)
+        self.lbl_total = ctk.CTkLabel(bottom, text="Balance: Rs 0", font=("Arial", 24, "bold"), text_color=COLOR_PRIMARY)
         self.lbl_total.pack(side='right')
         
         # Pagination state
@@ -91,17 +91,17 @@ class ViewExpensesFrame(ctk.CTkFrame):
         ctk.CTkLabel(header_inner, text=date_display, font=("Arial", 18, "bold"), 
                     text_color=date_color).pack(side='left')
         
-        # Count of expenses in this group
-        count_text = f"{len(expenses_in_group)} expense{'s' if len(expenses_in_group) > 1 else ''}"
+        # Count of transactions in this group
+        count_text = f"{len(expenses_in_group)} transaction{'s' if len(expenses_in_group) > 1 else ''}"
         ctk.CTkLabel(header_inner, text=count_text, font=("Arial", 14), 
                     text_color="#888").pack(side='right')
         
         # Render expenses in this group
         for idx, exp in enumerate(expenses_in_group):
-            self._render_row(exp['id'], exp['category'], exp['amount'], exp['note'], idx, group_frame)
+            self._render_row(exp['id'], exp['category'], exp['amount'], exp['note'], exp['type'], idx, group_frame)
     
-    def _render_row(self, exp_id, category, amount, note, idx, parent):
-        """Render a single expense row - AMAZING with colors and hover!"""
+    def _render_row(self, exp_id, category, amount, note, t_type, idx, parent):
+        """Render a single transaction row - AMAZING with colors and hover!"""
         # Card with hover effect
         row = ctk.CTkFrame(parent, fg_color=COLOR_SURFACE, corner_radius=12, 
                           border_width=1, border_color="#333344")
@@ -128,25 +128,33 @@ class ViewExpensesFrame(ctk.CTkFrame):
         cat_frame.pack_propagate(False)
         
         ctk.CTkLabel(cat_frame, text=utils.get_category_display(category), 
-                    font=("Arial", 13, "bold"), text_color="#000000", width=130).pack(expand=True)
+                    font=("Arial", 13, "bold"), text_color="#000000", width=110).pack(expand=True)
+        
+        # Type indicator
+        is_income = (t_type == 'Income')
+        type_color = COLOR_SUCCESS if is_income else COLOR_DANGER
+        type_label = ctk.CTkLabel(inner, text=t_type.upper(), font=("Arial", 11, "bold"), text_color=type_color)
+        type_label.grid(row=0, column=1, sticky='w', padx=(0, 20))
         
         # Note - expands to fill space, show only if exists
         if note and note.strip():
             ctk.CTkLabel(inner, text=note, font=("Arial", 14), 
-                        text_color="#aaa", anchor='w').grid(row=0, column=1, sticky='ew', padx=(0, 20))
+                        text_color="#aaa", anchor='w').grid(row=0, column=2, sticky='ew', padx=(0, 20))
         else:
             # Empty space if no note
-            ctk.CTkLabel(inner, text="", font=("Arial", 14)).grid(row=0, column=1, sticky='ew', padx=(0, 20))
+            ctk.CTkLabel(inner, text="", font=("Arial", 14)).grid(row=0, column=2, sticky='ew', padx=(0, 20))
         
         # Amount - fixed width, prominent
-        ctk.CTkLabel(inner, text=utils.format_currency(amount), font=("Arial", 20, "bold"), 
-                    text_color="white", width=150, anchor='e').grid(row=0, column=2, sticky='e', padx=(0, 20))
+        amt_color = COLOR_SUCCESS if is_income else "white"
+        prefix = "+" if is_income else "-"
+        ctk.CTkLabel(inner, text=f"{prefix}{utils.format_currency(amount)}", font=("Arial", 20, "bold"), 
+                    text_color=amt_color, width=150, anchor='e').grid(row=0, column=3, sticky='e', padx=(0, 20))
         
         # Delete button - more prominent
         ctk.CTkButton(inner, text="✕", width=40, height=34, fg_color="#2a1a1a", 
                      text_color=COLOR_DANGER, border_width=1, border_color=COLOR_DANGER,
                      hover_color="#3d1e1e", font=("Arial", 16, "bold"),
-                     command=lambda: self._delete_expense(exp_id)).grid(row=0, column=3, sticky='e')
+                     command=lambda: self._delete_expense(exp_id)).grid(row=0, column=4, sticky='e')
 
     def _group_expenses_by_date(self, expenses):
         """Group expenses by date"""
@@ -226,8 +234,8 @@ class ViewExpensesFrame(ctk.CTkFrame):
             self.lbl_showing.configure(text="")
             return
             
-        total = sum(e['amount'] for e in self._all_expenses)
-        self.lbl_total.configure(text=f"Total: {utils.format_currency(total)}")
+        balance = sum(e['amount'] if e['type'] == 'Income' else -e['amount'] for e in self._all_expenses)
+        self.lbl_total.configure(text=f"Balance: {utils.format_currency(balance)}")
         
         # Load first page only
         self._load_next_page()

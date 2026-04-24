@@ -24,7 +24,7 @@ class AddExpenseFrame(ctk.CTkFrame):
         scroll.pack(fill='both', expand=True, padx=30, pady=30)
         
         # Page Header
-        ctk.CTkLabel(scroll, text="Add New Expense", font=("Arial", 32, "bold")).pack(anchor='w', pady=(0, 30))
+        ctk.CTkLabel(scroll, text="Add New Transaction", font=("Arial", 32, "bold")).pack(anchor='w', pady=(0, 30))
         
         # Main Layout: Form + Preview side by side
         layout_grid = ctk.CTkFrame(scroll, fg_color="transparent")
@@ -41,15 +41,23 @@ class AddExpenseFrame(ctk.CTkFrame):
         form.pack(pady=40, padx=40, anchor='nw', fill='both', expand=True)
         form.grid_columnconfigure(0, weight=1)
         
+        # Type Selector
+        ctk.CTkLabel(form, text="Transaction Type", font=("Arial", 16, "bold"), text_color=PURPLE_ACCENT).grid(row=0, column=0, sticky='w', pady=(0,8))
+        self.trans_type = ctk.StringVar(value="Expense")
+        self.seg_type = ctk.CTkSegmentedButton(form, values=["Expense", "Income"], variable=self.trans_type, 
+                                               command=self._update_preview, height=45, font=("Arial", 14, "bold"),
+                                               selected_color=PURPLE_ACCENT, selected_hover_color="#9a7ad6")
+        self.seg_type.grid(row=1, column=0, sticky='ew', pady=(0,25))
+        
         # Amount Field
-        ctk.CTkLabel(form, text="Amount (Rs)", font=("Arial", 16, "bold"), text_color=PURPLE_ACCENT).grid(row=0, column=0, sticky='w', pady=(0,8))
+        ctk.CTkLabel(form, text="Amount (Rs)", font=("Arial", 16, "bold"), text_color=PURPLE_ACCENT).grid(row=2, column=0, sticky='w', pady=(0,8))
         self.ent_amount = ctk.CTkEntry(form, height=50, placeholder_text="e.g. 1500", fg_color=PURPLE_INPUT_BG, border_color=PURPLE_BORDER, font=("Arial", 16))
-        self.ent_amount.grid(row=1, column=0, sticky='ew', pady=(0,25))
+        self.ent_amount.grid(row=3, column=0, sticky='ew', pady=(0,25))
         
         # Category Tags
-        ctk.CTkLabel(form, text="Category Tags", font=("Arial", 16, "bold"), text_color=PURPLE_ACCENT).grid(row=2, column=0, sticky='w', pady=(0,8))
+        ctk.CTkLabel(form, text="Category Tags", font=("Arial", 16, "bold"), text_color=PURPLE_ACCENT).grid(row=4, column=0, sticky='w', pady=(0,8))
         self.tags_frame = ctk.CTkFrame(form, fg_color="transparent")
-        self.tags_frame.grid(row=3, column=0, sticky='ew', pady=(0, 10))
+        self.tags_frame.grid(row=5, column=0, sticky='ew', pady=(0, 10))
         self.selected_tag = ctk.StringVar(value="")
         self.bubble_buttons = []
         self.ent_custom_tag = ctk.CTkEntry(form, height=50, placeholder_text="Type custom tag...", fg_color=PURPLE_INPUT_BG, border_color=PURPLE_BORDER, font=("Arial", 15))
@@ -69,8 +77,8 @@ class AddExpenseFrame(ctk.CTkFrame):
         
         # Buttons
         btn_frame = ctk.CTkFrame(form, fg_color="transparent")
-        btn_frame.grid(row=9, column=0, sticky='ew')
-        ctk.CTkButton(btn_frame, text="Add Expense", font=("Arial", 16, "bold"), height=50, fg_color=PURPLE_ACCENT, text_color="#000000", hover_color="#9a7ad6", command=self.save_expense).pack(side='left', padx=(0, 15), expand=True, fill='x')
+        btn_frame.grid(row=11, column=0, sticky='ew')
+        ctk.CTkButton(btn_frame, text="Add Transaction", font=("Arial", 16, "bold"), height=50, fg_color=PURPLE_ACCENT, text_color="#000000", hover_color="#9a7ad6", command=self.save_expense).pack(side='left', padx=(0, 15), expand=True, fill='x')
         ctk.CTkButton(btn_frame, text="Clear", font=("Arial", 16, "bold"), height=50, fg_color="transparent", border_width=1, border_color=PURPLE_BORDER, hover_color="#2a1a3e", command=self.clear_form).pack(side='left', expand=True, fill='x')
         
         self.lbl_status = ctk.CTkLabel(form, text="", font=("Arial", 14, "bold"))
@@ -132,16 +140,20 @@ class AddExpenseFrame(ctk.CTkFrame):
     
     def _update_preview(self, event=None):
         """Update live preview as user types"""
-        # Update amount
+        # Update amount and type
         amt = self.ent_amount.get().strip()
+        t_type = self.trans_type.get()
+        color = COLOR_SUCCESS if t_type == "Income" else "white"
+        
         if amt:
             try:
-                formatted = utils.format_currency(float(amt))
-                self.preview_amount_value.configure(text=formatted)
+                val = float(amt)
+                formatted = utils.format_currency(val)
+                self.preview_amount_value.configure(text=formatted, text_color=color)
             except:
-                self.preview_amount_value.configure(text=f"Rs {amt}")
+                self.preview_amount_value.configure(text=f"Rs {amt}", text_color=color)
         else:
-            self.preview_amount_value.configure(text="Rs 0.00")
+            self.preview_amount_value.configure(text="Rs 0.00", text_color=color)
         
         # Update category
         cat = self.selected_tag.get()
@@ -243,9 +255,9 @@ class AddExpenseFrame(ctk.CTkFrame):
         v_cat, m_cat = utils.validate_category(cat)
         if not v_cat: self.lbl_status.configure(text=m_cat, text_color=COLOR_DANGER); return
 
-        if expense.add_expense(amt, cat, date, note):
+        if expense.add_expense(amt, cat, date, note, self.trans_type.get()):
             analytics.invalidate_chart_cache()
-            show_auto_dismiss_message(self.lbl_status, "Expense saved successfully!", PURPLE_ACCENT)
+            show_auto_dismiss_message(self.lbl_status, "Transaction saved successfully!", PURPLE_ACCENT)
             def flash_bg(color, steps=0):
                 if steps == 0: 
                     self.card.configure(border_color=PURPLE_ACCENT, border_width=2)
