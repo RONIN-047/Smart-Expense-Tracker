@@ -26,7 +26,7 @@ def get_connection() -> Generator[sqlite3.Connection, None, None]:
             conn.close()
 
 def initialise_db() -> bool:
-    """Create expenses and budgets tables if they do not exist."""
+    """Create expenses and budgets tables if they do not exist, and handle schema updates."""
     try:
         with get_connection() as conn:
             cursor = conn.cursor()
@@ -36,9 +36,18 @@ def initialise_db() -> bool:
                     amount REAL NOT NULL,
                     category TEXT NOT NULL,
                     date TEXT NOT NULL,
-                    note TEXT DEFAULT ''
+                    note TEXT DEFAULT '',
+                    type TEXT DEFAULT 'Expense'
                 )
             ''')
+            
+            # Migration: Add 'type' column if it doesn't exist (for existing databases)
+            cursor.execute("PRAGMA table_info(expenses)")
+            columns = [column[1] for column in cursor.fetchall()]
+            if 'type' not in columns:
+                print("Migrating database: Adding 'type' column to expenses table.")
+                cursor.execute("ALTER TABLE expenses ADD COLUMN type TEXT DEFAULT 'Expense'")
+                
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS budgets (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -66,20 +75,3 @@ def save_budget(category: str, limit: float) -> bool:
     except sqlite3.Error as e:
         print(f"Error saving budget: {e}")
         return False
-
-# Quick test block
-if __name__ == "__main__":
-    print("--- Testing db.py ---")
-    db_path = get_db_path()
-    print(f"Database Path Target: {db_path}")
-    
-    print("\nInitialising DB and creating tables if missing...")
-    success = initialise_db()
-    if success:
-        print(f"Success! Database ready.")
-        print(f"File exists at path: {db_path.exists()}")
-        print("\nTesting save_budget()...")
-        save_success = save_budget("Food", 2500)
-        print(f"Save 'Food' budget (2500): {'Success' if save_success else 'Failed'}")
-    else:
-        print("Failed to initialise database.")

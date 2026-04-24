@@ -16,6 +16,22 @@ CATEGORY_ICONS: dict[str, str] = {
     'other': '📌'
 }
 
+CATEGORY_COLORS: dict[str, str] = {
+    'food': '#ff6b6b',         # Coral
+    'travel': '#ffd700',       # Gold
+    'shopping': '#ff9ff3',     # Pink
+    'health': '#00f5a0',       # Neon Green
+    'education': '#00d2ff',    # Cyan
+    'bills': '#ffa502',        # Orange
+    'entertainment': '#a29bfe',# Lavender
+    'other': '#dfe6e9'         # Silver
+}
+
+def get_category_color(category: str) -> str:
+    """Return the assigned hex color for a given category."""
+    cat_lower = str(category).lower().strip()
+    return CATEGORY_COLORS.get(cat_lower, '#3b8ed0') # Default blue if not found
+
 def get_category_display(category: str) -> str:
     # Format category name with its corresponding emoji icon
     cat_lower = str(category).lower().strip()
@@ -38,11 +54,14 @@ def validate_amount(value: Any) -> Tuple[bool, Optional[str]]:
         return False, "Amount must be a valid number."
 
 def validate_date(value: Any) -> Tuple[bool, Optional[str]]:
-    # Validate that the given string strictly matches the YYYY-MM-DD format.
+    """Validate that the given string strictly matches the YYYY-MM-DD format and is not in the future."""
     if not value or str(value).strip() == "":
         return False, "Date cannot be empty."
     try:
-        datetime.datetime.strptime(str(value), "%Y-%m-%d")
+        date_obj = datetime.datetime.strptime(str(value), "%Y-%m-%d")
+        today = datetime.datetime.today()
+        if date_obj.date() > today.date():
+            return False, "Date cannot be in the future."
         return True, None
     except ValueError:
         return False, "Date must be in YYYY-MM-DD format."
@@ -62,6 +81,23 @@ def format_month(yyyy_mm: str) -> str:
         return date_obj.strftime("%B %Y")
     except ValueError:
         return yyyy_mm
+
+def validate_category(value: Any) -> Tuple[bool, Optional[str]]:
+    """Validate that the category name is reasonable."""
+    if not value or str(value).strip() == "":
+        return False, "Category cannot be empty."
+    
+    category = str(value).strip()
+    
+    # Check length
+    if len(category) > 50:
+        return False, "Category name is too long (max 50 characters)."
+    
+    # Check for only whitespace or special characters
+    if not any(c.isalnum() for c in category):
+        return False, "Category must contain at least one letter or number."
+    
+    return True, None
 
 def get_today() -> str:
     """Return the current local date in YYYY-MM-DD format."""

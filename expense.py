@@ -2,21 +2,21 @@
 import sqlite3
 import db
 import utils
-from typing import List, Tuple, Any
+from typing import List
 
-def add_expense(amount: float | str, category: str, date: str, note: str = '') -> bool:
-    """Insert a new expense into the database. Returns True on success."""
+def add_expense(amount: float | str, category: str, date: str, note: str = '', trans_type: str = 'Expense') -> bool:
+    """Insert a new transaction into the database. Returns True on success."""
     try:
         with db.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute('''
-                INSERT INTO expenses (amount, category, date, note)
-                VALUES (?, ?, ?, ?)
-            ''', (float(amount), category, date, note))
+                INSERT INTO expenses (amount, category, date, note, type)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (float(amount), category, date, note, trans_type))
             conn.commit()
             return True
     except sqlite3.Error as e:
-        print(f"Error adding expense: {e}")
+        print(f"Error adding transaction: {e}")
         return False
 
 def get_all_expenses() -> List[sqlite3.Row]:
@@ -29,6 +29,17 @@ def get_all_expenses() -> List[sqlite3.Row]:
     except sqlite3.Error as e:
         print(f"Error fetching expenses: {e}")
         return []
+
+def get_expense_by_id(expense_id: int) -> sqlite3.Row:
+    """Return a single expense row by its ID."""
+    try:
+        with db.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM expenses WHERE id = ?', (expense_id,))
+            return cursor.fetchone()
+    except sqlite3.Error as e:
+        print(f"Error fetching expense by id: {e}")
+        return None
 
 def get_expenses_by_category(category: str) -> List[sqlite3.Row]:
     """Return all expenses for a specific category."""
@@ -45,22 +56,6 @@ def get_expenses_by_category(category: str) -> List[sqlite3.Row]:
         print(f"Error fetching expenses by category: {e}")
         return []
 
-def update_expense(expense_id: int, amount: float | str, category: str, date: str, note: str) -> bool:
-    """Update an existing expense in the database. Returns True on success."""
-    try:
-        with db.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute('''
-                UPDATE expenses
-                SET amount = ?, category = ?, date = ?, note = ?
-                WHERE id = ?
-            ''', (float(amount), category, date, note, expense_id))
-            conn.commit()
-            return True
-    except sqlite3.Error as e:
-        print(f"Error updating expense: {e}")
-        return False
-
 def delete_expense(expense_id: int) -> bool:
     """Delete the expense with the given ID. Returns True on success."""
     try:
@@ -73,9 +68,25 @@ def delete_expense(expense_id: int) -> bool:
         print(f"Error deleting expense: {e}")
         return False
 
+def update_expense(expense_id: int, amount: float | str, category: str, date: str, note: str, trans_type: str) -> bool:
+    """Update an existing transaction in the database. Returns True on success."""
+    try:
+        with db.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                UPDATE expenses 
+                SET amount = ?, category = ?, date = ?, note = ?, type = ?
+                WHERE id = ?
+            ''', (float(amount), category, date, note, trans_type, expense_id))
+            conn.commit()
+            return True
+    except sqlite3.Error as e:
+        print(f"Error updating transaction: {e}")
+        return False
+
 def get_all_categories() -> List[str]:
     """Return a unique list of all categories used, combining database records with utils defaults."""
-    categories = list(utils.CATEGORIES) # Base defaults
+    categories = list(utils.CATEGORIES)
     try:
         with db.get_connection() as conn:
             cursor = conn.cursor()
@@ -87,30 +98,3 @@ def get_all_categories() -> List[str]:
     except sqlite3.Error as e:
         print(f"Error fetching categories: {e}")
         return categories
-
-# Quick test block
-if __name__ == '__main__':
-    print("--- Testing expense.py ---")
-    print("\n1. Adding sample expenses...")
-    added1 = add_expense(150.0, "Food", "2026-04-11", "Lunch")
-    added2 = add_expense(80.5, "Travel", "2026-04-10", "Bus")
-    added3 = add_expense(500.0, "Shopping", utils.get_today(), "Shoes")
-    print(f"Records Added: {added1}, {added2}, {added3}")
-    
-    print("\n2. Getting all expenses:")
-    all_exp = get_all_expenses()
-    for row in all_exp:
-        print(f"ID: {row['id']} | {row['date']} | {row['category']} | Rs {row['amount']} | {row['note']}")
-        
-    print("\n3. Filtering by 'Food' category:")
-    food_exp = get_expenses_by_category("Food")
-    for row in food_exp:
-        print(f"ID: {row['id']} | {row['date']} | Rs {row['amount']}")
-        
-    print("\n4. Testing Deletion:")
-    if all_exp:
-        first_id = all_exp[0]['id']
-        print(f"Deleting expense ID {first_id}...")
-        del_success = delete_expense(first_id)
-        print(f"Delete Submited: {del_success}")
-        print(f"Expenses remaining: {len(get_all_expenses())}")
