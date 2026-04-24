@@ -28,9 +28,19 @@ class DashboardFrame(ctk.CTkFrame):
         
         # Make sure greeting shows!
         greeting_label = ctk.CTkLabel(header, text=greeting, font=("Arial", 40, "bold"))
-        greeting_label.pack(anchor='w')
-        date_label = ctk.CTkLabel(header, text=now.strftime('%A, %b %d, %Y'), font=("Arial", 16), text_color="grey")
-        date_label.pack(anchor='w', pady=(8, 0))
+        greeting_label.pack(side='left', anchor='w')
+        
+        # Balance Info on Top Right
+        self.balance_info_frame = ctk.CTkFrame(header, fg_color="transparent")
+        self.balance_info_frame.pack(side='right', anchor='ne', pady=(5, 0))
+        
+        ctk.CTkLabel(self.balance_info_frame, text="TOTAL BALANCE", font=("Arial", 12, "bold"), text_color="#888").pack(anchor='e')
+        self.lbl_top_balance = ctk.CTkLabel(self.balance_info_frame, text="Rs 0.00", font=("Arial", 32, "bold"), text_color=COLOR_PRIMARY)
+        self.lbl_top_balance.pack(anchor='e')
+
+        # Date below greeting
+        date_label = ctk.CTkLabel(self.scroll, text=now.strftime('%A, %b %d, %Y'), font=("Arial", 16), text_color="grey")
+        date_label.place(in_=greeting_label, relx=0, rely=1.0, y=8, anchor='nw')
         
         # Summary Cards Row - MUCH better spacing
         cards_frame = ctk.CTkFrame(self.scroll, fg_color="transparent")
@@ -223,6 +233,7 @@ class DashboardFrame(ctk.CTkFrame):
         month_exp = sum(e['amount'] for e in expenses if e['date'].startswith(curr_month) and e['type'] == 'Expense')
         
         self.val_balance.set(utils.format_currency(balance))
+        self.lbl_top_balance.configure(text=utils.format_currency(balance))
         self.val_month_inc.set(utils.format_currency(month_inc))
         self.val_month_exp.set(utils.format_currency(month_exp))
         

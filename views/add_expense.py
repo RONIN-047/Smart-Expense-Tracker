@@ -41,13 +41,16 @@ class AddExpenseFrame(ctk.CTkFrame):
         form.pack(pady=40, padx=40, anchor='nw', fill='both', expand=True)
         form.grid_columnconfigure(0, weight=1)
         
-        # Type Selector
-        ctk.CTkLabel(form, text="Transaction Type", font=("Arial", 16, "bold"), text_color=PURPLE_ACCENT).grid(row=0, column=0, sticky='w', pady=(0,8))
+        # Type Selector - Using Tabview as requested
+        self.tab_type = ctk.CTkTabview(form, height=50, fg_color="transparent", 
+                                       segmented_button_selected_color=PURPLE_ACCENT,
+                                       segmented_button_selected_hover_color="#9a7ad6",
+                                       segmented_button_unselected_color=PURPLE_BORDER,
+                                       command=self._on_tab_change)
+        self.tab_type.grid(row=0, column=0, sticky='ew', pady=(0, 20))
+        self.tab_type.add("Expense")
+        self.tab_type.add("Income")
         self.trans_type = ctk.StringVar(value="Expense")
-        self.seg_type = ctk.CTkSegmentedButton(form, values=["Expense", "Income"], variable=self.trans_type, 
-                                               command=self._update_preview, height=45, font=("Arial", 14, "bold"),
-                                               selected_color=PURPLE_ACCENT, selected_hover_color="#9a7ad6")
-        self.seg_type.grid(row=1, column=0, sticky='ew', pady=(0,25))
         
         # Amount Field
         ctk.CTkLabel(form, text="Amount (Rs)", font=("Arial", 16, "bold"), text_color=PURPLE_ACCENT).grid(row=2, column=0, sticky='w', pady=(0,8))
@@ -123,6 +126,11 @@ class AddExpenseFrame(ctk.CTkFrame):
         # Bind events for live preview updates
         self.ent_amount.bind('<KeyRelease>', self._update_preview)
         self.ent_note.bind('<KeyRelease>', self._update_preview)
+
+    def _on_tab_change(self):
+        """Update trans_type based on active tab"""
+        self.trans_type.set(self.tab_type.get())
+        self._update_preview()
         
     def _select_tag(self, tag_val):
         self.selected_tag.set(tag_val)
