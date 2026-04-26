@@ -14,7 +14,3 @@ dist/
 # OS generated files
 .DS_Store
 Thumbs.db
-
-# Documentation and Analysis
-Future_Features_Analysis.docx
-future_features_prompt.md
