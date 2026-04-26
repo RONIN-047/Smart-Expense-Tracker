@@ -1,5 +1,7 @@
 # main.py - Application entry point and window shell
 import sys
+import os
+from PIL import Image
 
 # Check for required dependencies before importing
 try:
@@ -46,7 +48,7 @@ class App(ctk.CTk):
     def __init__(self):
         super().__init__()
         
-        self.title("Expense Tracker")
+        self.title("ExpenseInsight")
         self.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
         self.minsize(1100, 700)
         self.configure(fg_color=COLOR_BG)
@@ -70,8 +72,31 @@ class App(ctk.CTk):
         # Logo
         logo_frame = ctk.CTkFrame(self.sidebar, fg_color="transparent")
         logo_frame.grid(row=0, column=0, padx=15, pady=(30, 20), sticky='w')
-        ctk.CTkLabel(logo_frame, text="⚡ ", font=("Arial", 22, "bold")).pack(side='left')
-        ctk.CTkLabel(logo_frame, text="Expense", font=("Arial", 22, "bold"), text_color=COLOR_SUCCESS).pack(side='left')
+        
+        # Load and display logo image
+        try:
+            logo_path = os.path.join(os.path.dirname(__file__), "assets", "logo.png")
+            pil_image = Image.open(logo_path)
+            logo_img = ctk.CTkImage(light_image=pil_image, dark_image=pil_image, size=(35, 35))
+            
+            ctk.CTkLabel(logo_frame, image=logo_img, text="").pack(side='left', padx=(0, 10))
+            
+            # Set window icon (taskbar & title bar)
+            # Using a delay to ensure the window is initialized
+            def set_icon():
+                try:
+                    import tkinter as tk
+                    icon_img = tk.PhotoImage(file=logo_path)
+                    self.iconphoto(False, icon_img)
+                except:
+                    pass
+            self.after(200, set_icon)
+            
+        except Exception as e:
+            print(f"Logo loading failed: {e}")
+            ctk.CTkLabel(logo_frame, text="⚡ ", font=("Arial", 22, "bold")).pack(side='left')
+
+        ctk.CTkLabel(logo_frame, text="ExpenseInsight", font=("Arial", 22, "bold"), text_color=COLOR_SUCCESS).pack(side='left')
         
         self.frames = {}
         self.nav_buttons = {}
