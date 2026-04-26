@@ -1,4 +1,4 @@
-# Expense Tracker
+# ExpenseInsight: Personal Expense Analysis System
 
 **Name:** Abiel Sudeept Kumar  
 **Enrollment Number:** 2023-310-019
